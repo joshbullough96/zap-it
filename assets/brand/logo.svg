@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Zap It logo</title>
+  <desc id="desc">A yellow lightning bolt striking a matching target on a teal game tile.</desc>
+  <defs>
+    <linearGradient id="tile" x1="18" y1="12" x2="110" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f7b8f"/>
+      <stop offset="0.58" stop-color="#115d77"/>
+      <stop offset="1" stop-color="#17212b"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="44" y1="14" x2="80" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff16a"/>
+      <stop offset="0.48" stop-color="#ffc940"/>
+      <stop offset="1" stop-color="#ef8737"/>
+    </linearGradient>
+    <filter id="shadow" x="-18%" y="-14%" width="136%" height="142%">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#17212b" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+  <rect x="12" y="12" width="104" height="104" rx="24" fill="url(#tile)" filter="url(#shadow)"/>
+  <rect x="22" y="22" width="84" height="84" rx="18" fill="none" stroke="#ffffff" stroke-opacity="0.17" stroke-width="3"/>
+  <circle cx="73" cy="63" r="28" fill="#f7fdff" opacity="0.97"/>
+  <circle cx="73" cy="63" r="18" fill="none" stroke="#0f7b8f" stroke-width="6"/>
+  <circle cx="73" cy="63" r="7" fill="#d83b4a"/>
+  <path d="M59 8 31 69h25l-10 51 50-69H68L83 8Z" fill="url(#bolt)" stroke="#17212b" stroke-opacity="0.22" stroke-linejoin="round" stroke-width="4"/>
+  <path d="M55 20 41 55h19l-6 31 28-43H63l9-23Z" fill="#fff8a6" opacity="0.42"/>
+  <circle cx="33" cy="36" r="6" fill="#22a06b"/>
+  <rect x="92" y="31" width="13" height="13" rx="3" fill="#2877d8"/>
+  <path d="M96 89 105 105H87Z" fill="#f0c83b"/>
+</svg>

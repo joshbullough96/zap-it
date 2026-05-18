@@ -1,0 +1,4 @@
+project_id = "zap-it"
+
+[functions.leaderboard]
+verify_jwt = false

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zap It</title>
+    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="game-shell" aria-labelledby="game-title">
+      <section class="top-bar" aria-label="Game status">
+        <div class="brand-lockup">
+          <img class="app-logo" src="assets/brand/logo.svg" alt="Zap It logo" width="58" height="58">
+          <div>
+            <p class="eyebrow">Zap It</p>
+            <h1 id="game-title">Find the match</h1>
+          </div>
+        </div>
+        <div class="top-actions">
+          <div class="timer" aria-live="polite">
+            <span id="time-left">60</span>
+            <span>sec</span>
+          </div>
+          <button id="settings-button" class="icon-button" type="button" aria-label="Settings" title="Settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 2.8v2.1"></path>
+              <path d="M12 19.1v2.1"></path>
+              <path d="M2.8 12h2.1"></path>
+              <path d="M19.1 12h2.1"></path>
+              <path d="m5.5 5.5 1.5 1.5"></path>
+              <path d="m17 17 1.5 1.5"></path>
+              <path d="m18.5 5.5-1.5 1.5"></path>
+              <path d="m7 17-1.5 1.5"></path>
+              <circle cx="12" cy="12" r="6.1"></circle>
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <section id="target-panel" class="target-panel is-waiting" aria-label="Target item">
+        <div>
+          <p id="target-name" class="target-name">Ready?</p>
+          <p id="target-help" class="label">Press start to begin</p>
+        </div>
+        <div id="target-shape" class="target-shape" aria-hidden="true"></div>
+      </section>
+
+      <section class="score-row" aria-label="Score and game stats">
+        <div>
+          <span class="label">Score</span>
+          <strong id="score">0</strong>
+        </div>
+        <div>
+          <span class="label">Streak</span>
+          <strong id="streak">0</strong>
+        </div>
+        <div>
+          <span class="label">Zaps/sec</span>
+          <strong id="zap-rate">0.00</strong>
+        </div>
+      </section>
+
+      <section class="board-wrap" aria-label="Zap grid">
+        <div id="grid" class="grid" role="grid" aria-describedby="message"></div>
+      </section>
+
+      <section class="controls" aria-label="Game controls">
+        <p id="message" class="message" aria-live="polite">Tap Start, then zap the matching shape as fast as you can.</p>
+        <button id="start-button" class="primary-button" type="button">Start</button>
+      </section>
+
+    </main>
+
+    <div id="settings-menu" class="overlay settings-overlay" hidden>
+      <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="settings-heading">
+          <div>
+            <p class="eyebrow">Settings</p>
+            <h2 id="settings-title">Game look</h2>
+          </div>
+          <button id="close-settings-button" class="icon-button" type="button" aria-label="Close settings" title="Close settings">X</button>
+        </div>
+
+        <form class="settings-form">
+          <fieldset>
+            <legend>Theme</legend>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="normal">
+              <span>Normal</span>
+              <span class="theme-swatches" aria-hidden="true">
+                <span style="--swatch: #2877d8"></span>
+                <span style="--swatch: #22a06b"></span>
+                <span style="--swatch: #d83b4a"></span>
+              </span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="oneColor">
+              <span>One color</span>
+              <input id="one-color-picker" class="one-color-picker" type="color" value="#0f7b8f" aria-label="Pick one color">
+              <span id="one-color-swatches" class="theme-swatches" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="christmas">
+              <span>Christmas</span>
+              <span class="theme-swatches" aria-hidden="true">
+                <span style="--swatch: #c8d0d6"></span>
+                <span style="--swatch: #c52b2f"></span>
+                <span style="--swatch: #167a4a"></span>
+              </span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="fall">
+              <span>Fall</span>
+              <span class="theme-swatches" aria-hidden="true">
+                <span style="--swatch: #c65f24"></span>
+                <span style="--swatch: #d99a22"></span>
+                <span style="--swatch: #6f7f3a"></span>
+              </span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="summer">
+              <span>Summer</span>
+              <span class="theme-swatches" aria-hidden="true">
+                <span style="--swatch: #f8c630"></span>
+                <span style="--swatch: #ff6f61"></span>
+                <span style="--swatch: #24b8c8"></span>
+              </span>
+            </label>
+          </fieldset>
+
+          <label class="toggle-row">
+            <span>Dark mode</span>
+            <input id="dark-mode-toggle" type="checkbox">
+          </label>
+        </form>
+      </section>
+    </div>
+
+    <div id="game-over" class="overlay" hidden>
+      <section class="result-panel" role="dialog" aria-modal="true" aria-labelledby="result-title">
+        <p class="eyebrow">Time</p>
+        <h2 id="result-title">Game over</h2>
+        <p class="result-score">You zapped <strong id="final-score">0</strong> matches.</p>
+        <p class="result-rate">Speed: <strong id="final-zap-rate">0.00</strong> zaps/sec</p>
+        <form id="score-form" class="score-form">
+          <label for="player-name">Save your score</label>
+          <p class="privacy-note">This will be shared online. Do not enter or save identifying information.</p>
+          <div class="score-submit-row">
+            <input id="player-name" name="player-name" type="text" maxlength="16" autocomplete="nickname" placeholder="Your name">
+            <button id="save-score-button" class="primary-button" type="submit">Save</button>
+          </div>
+          <p id="save-score-status" class="save-score-status" role="status"></p>
+        </form>
+        <button id="play-again-button" class="primary-button" type="button">Play again</button>
+        <section class="leaderboard-panel" aria-labelledby="leaderboard-title">
+          <div class="leaderboard-heading">
+            <div>
+              <p class="eyebrow">Leaderboard</p>
+              <h2 id="leaderboard-title">Top 5</h2>
+            </div>
+            <button id="refresh-leaderboard" class="ghost-button" type="button">Refresh</button>
+          </div>
+          <ol id="leaderboard-list" class="leaderboard-list" aria-live="polite"></ol>
+          <p id="leaderboard-status" class="leaderboard-status" role="status">Loading leaderboard...</p>
+        </section>
+      </section>
+    </div>
+
+    <script src="app-config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
