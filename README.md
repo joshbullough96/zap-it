@@ -11,7 +11,7 @@ The app is intentionally lightweight: plain HTML, CSS, and JavaScript for the ga
 |-- index.html                         # Game markup and dialogs
 |-- styles.css                         # Responsive layout, themes, animation, and visual states
 |-- app.js                             # Game state, settings, scoring, rendering, and leaderboard calls
-|-- app-config.js                      # Local config, ignored by Git
+|-- app-config.js                      # Public leaderboard endpoint config
 |-- assets/
 |   |-- brand/logo.svg                 # App logo
 |   `-- icons/favicon.svg              # Browser favicon
@@ -48,7 +48,7 @@ Follow [supabase/README.md](supabase/README.md) to:
 4. Deploy the `leaderboard` function.
 5. Create `app-config.js` and set `leaderboardEndpoint`.
 
-Do not put the Supabase service role key, anon key, or other secrets in frontend files. The browser should only know the public Edge Function URL.
+Do not put the Supabase service role key, anon key, or other secrets in frontend files. The browser should only know the public Edge Function URL in `app-config.js`.
 
 ## Gameplay Rules
 
@@ -88,7 +88,7 @@ AI assistants should follow these rules:
 
 - Do not invent a package manager, bundler, test framework, or app framework unless the requested feature truly needs one.
 - Do not remove existing accessibility attributes while restructuring markup.
-- Do not commit or expose `app-config.js` values, Supabase service role keys, or other local secrets.
+- Do not commit or expose Supabase service role keys, anon keys, or other local secrets. `app-config.js` may be committed only because it contains the public Edge Function URL.
 - Do not change the leaderboard API contract casually. The frontend expects `{ scores: [...] }` from `GET` and `{ ok: true }` from successful `POST`.
 - Keep validation duplicated intentionally where it protects the user experience: the browser gives quick feedback, and the Edge Function/database enforce server-side safety.
 - After frontend changes, run the game in a browser-sized viewport and check start, correct tap, wrong tap, game over, settings, and leaderboard-empty states.
@@ -112,6 +112,6 @@ Use this quick pass before considering a change done:
 
 ## Deployment Notes
 
-Because this is a static app, deploy the root files and `assets/` folder to any static host. Include a deployment-specific `app-config.js` that sets the public Supabase Edge Function URL if the leaderboard should be active.
+Because this is a static app, deploy the root files and `assets/` folder to any static host. Include `app-config.js` with the public Supabase Edge Function URL if the leaderboard should be active.
 
 Supabase deployment is handled separately through the files in `supabase/`.

@@ -1,7 +1,6 @@
 # Local secrets and environment
 .env
 .env.*
-app-config.js
 
 # Supabase local state
 .branches

@@ -54,4 +54,4 @@ window.ZAP_IT_CONFIG = {
 };
 ```
 
-`app-config.js` is ignored by Git so local endpoint values stay out of source control.
+`app-config.js` contains only the public Edge Function URL, so it can be committed for static hosting.
