@@ -45,7 +45,7 @@ async function getLeaderboard() {
   });
 
   if (!response.ok) {
-    throw new Error("Leaderboard could not be loaded.");
+    throw new Error(await getSupabaseErrorMessage(response, "Leaderboard could not be loaded."));
   }
 
   const rows = await response.json();
@@ -98,7 +98,7 @@ async function saveScore(payload: unknown) {
   });
 
   if (!response.ok) {
-    throw new Error("Score could not be saved.");
+    throw new Error(await getSupabaseErrorMessage(response, "Score could not be saved."));
   }
 }
 
@@ -179,16 +179,31 @@ function getRestUrl() {
 }
 
 function getSupabaseHeaders() {
-  const serviceRoleKey = Deno.env.get("ZAP_SUPABASE_SERVICE_ROLE_KEY");
+  const serviceRoleKey = Deno.env.get("ZAP_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("zap_it_secret_key");
 
   if (!serviceRoleKey) {
     throw new Error("Leaderboard service is not configured.");
   }
 
-  return {
+  const headers: Record<string, string> = {
     apikey: serviceRoleKey,
-    Authorization: `Bearer ${serviceRoleKey}`,
   };
+
+  if (serviceRoleKey.startsWith("eyJ")) {
+    headers.Authorization = `Bearer ${serviceRoleKey}`;
+  }
+
+  return headers;
+}
+
+async function getSupabaseErrorMessage(response: Response, fallbackMessage: string) {
+  const details = await response.text().catch(() => "");
+
+  if (!details) {
+    return fallbackMessage;
+  }
+
+  return `${fallbackMessage} Supabase returned ${response.status}: ${details}`;
 }
 
 function jsonResponse(payload: unknown, status = 200) {

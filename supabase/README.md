@@ -19,7 +19,7 @@ Run `supabase/migrations/20260517000000_create_leaderboard_scores.sql` in the Su
 
 ## 3. Add function secrets
 
-Set these secrets for the Edge Function:
+Set these Zap-specific secrets for the Edge Function:
 
 ```sh
 supabase secrets set ZAP_SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co"
@@ -28,6 +28,8 @@ supabase secrets set ZAP_SUPABASE_SERVICE_ROLE_KEY="YOUR_SERVICE_ROLE_KEY"
 
 Do not put the service role key in frontend files.
 
+If you created a Supabase secret key named `zap_it_secret_key`, this function will also use that as the elevated API key.
+
 ## 4. Deploy the function
 
 ```sh
@@ -35,6 +37,14 @@ supabase functions deploy leaderboard
 ```
 
 The included `supabase/config.toml` sets `verify_jwt = false` for this function so the static browser game can call it without exposing a Supabase anon key.
+
+If score saving fails with an authorization message such as `Missing authorization header`, redeploy with JWT verification explicitly disabled:
+
+```sh
+supabase functions deploy leaderboard --no-verify-jwt
+```
+
+If score saving fails with `Leaderboard service is not configured`, re-check the `ZAP_SUPABASE_URL` and `ZAP_SUPABASE_SERVICE_ROLE_KEY` function secrets.
 
 ## 5. Configure the game
 

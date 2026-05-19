@@ -548,7 +548,7 @@ async function handleScoreSubmit(event) {
     const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(result.error || "Score could not be saved.");
+      throw new Error(getResponseErrorMessage(result, "Score could not be saved."));
     }
 
     scoreSaved = true;
@@ -580,7 +580,7 @@ async function loadLeaderboard() {
     const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(result.error || "Leaderboard could not be loaded.");
+      throw new Error(getResponseErrorMessage(result, "Leaderboard could not be loaded."));
     }
 
     const entries = Array.isArray(result.scores) ? result.scores : [];
@@ -616,6 +616,14 @@ function renderLeaderboard(entries) {
     item.append(rank, name, scoreValue, rateValue);
     leaderboardList.append(item);
   });
+}
+
+function getResponseErrorMessage(result, fallbackMessage) {
+  if (!result || typeof result !== "object") {
+    return fallbackMessage;
+  }
+
+  return result.error || result.message || result.msg || fallbackMessage;
 }
 
 function validatePlayerName(playerName) {
