@@ -28,8 +28,6 @@ supabase secrets set ZAP_SUPABASE_SERVICE_ROLE_KEY="YOUR_SERVICE_ROLE_KEY"
 
 Do not put the service role key in frontend files.
 
-If you created a Supabase secret key named `zap_it_secret_key`, this function will also use that as the elevated API key.
-
 ## 4. Deploy the function
 
 ```sh

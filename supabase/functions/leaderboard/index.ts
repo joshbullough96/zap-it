@@ -179,21 +179,16 @@ function getRestUrl() {
 }
 
 function getSupabaseHeaders() {
-  const serviceRoleKey = Deno.env.get("ZAP_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("zap_it_secret_key");
+  const serviceRoleKey = Deno.env.get("ZAP_SUPABASE_SERVICE_ROLE_KEY");
 
   if (!serviceRoleKey) {
     throw new Error("Leaderboard service is not configured.");
   }
 
-  const headers: Record<string, string> = {
+  return {
     apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
   };
-
-  if (serviceRoleKey.startsWith("eyJ")) {
-    headers.Authorization = `Bearer ${serviceRoleKey}`;
-  }
-
-  return headers;
 }
 
 async function getSupabaseErrorMessage(response: Response, fallbackMessage: string) {
