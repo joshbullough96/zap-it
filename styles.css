@@ -733,14 +733,20 @@ input:focus-visible {
   font-size: 1.05rem;
 }
 
-.result-rate {
-  margin: 0 0 1.1rem;
+.result-rate,
+.result-misses {
+  margin: 0 0 0.25rem;
   color: var(--muted);
   font-size: 1.05rem;
 }
 
+.result-misses {
+  margin-bottom: 1.1rem;
+}
+
 .result-score strong,
-.result-rate strong {
+.result-rate strong,
+.result-misses strong {
   color: var(--ink);
 }
 

@@ -38,7 +38,7 @@ Deno.serve(async (request) => {
 });
 
 async function getLeaderboard() {
-  const endpoint = `${getRestUrl()}?select=player_name,score,zaps_per_second,elapsed_seconds,created_at&order=score.desc,zaps_per_second.desc,created_at.asc&limit=5`;
+  const endpoint = `${getRestUrl()}?select=player_name,score,zaps_per_second,elapsed_seconds,wrong_count,created_at&order=score.desc,zaps_per_second.desc,created_at.asc&limit=5`;
   const response = await fetch(endpoint, {
     method: "GET",
     headers: getSupabaseHeaders(),
@@ -54,6 +54,7 @@ async function getLeaderboard() {
     score: row.score,
     zapsPerSecond: row.zaps_per_second,
     elapsedSeconds: row.elapsed_seconds,
+    wrongCount: row.wrong_count,
     createdAt: row.created_at,
   }));
 
@@ -70,6 +71,7 @@ async function saveScore(payload: unknown) {
   const score = normalizeInteger(body.score, "score", 0, 1000);
   const zapsPerSecond = normalizeNumber(body.zapsPerSecond, "zaps per second", 0, 100);
   const elapsedSeconds = normalizeNumber(body.elapsedSeconds, "elapsed seconds", 0.01, 600);
+  const wrongCount = body.wrongCount === undefined ? 0 : normalizeInteger(body.wrongCount, "miss count", 0, 1000);
   const validationMessage = validatePlayerName(playerName);
 
   if (validationMessage) {
@@ -94,6 +96,7 @@ async function saveScore(payload: unknown) {
       score,
       zaps_per_second: zapsPerSecond,
       elapsed_seconds: elapsedSeconds,
+      wrong_count: wrongCount,
     }),
   });
 

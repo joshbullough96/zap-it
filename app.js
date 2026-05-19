@@ -72,6 +72,7 @@ const startButton = document.querySelector("#start-button");
 const gameOver = document.querySelector("#game-over");
 const finalScore = document.querySelector("#final-score");
 const finalZapRate = document.querySelector("#final-zap-rate");
+const finalWrongCount = document.querySelector("#final-wrong-count");
 const playAgainButton = document.querySelector("#play-again-button");
 const leaderboardList = document.querySelector("#leaderboard-list");
 const leaderboardStatus = document.querySelector("#leaderboard-status");
@@ -90,6 +91,7 @@ const oneColorSwatches = document.querySelectorAll("#one-color-swatches span");
 
 let score = 0;
 let streak = 0;
+let wrongCount = 0;
 let timeLeft = gameLength;
 let target = null;
 let running = false;
@@ -280,6 +282,7 @@ function startGame() {
   clearRoundTimeouts();
   score = 0;
   streak = 0;
+  wrongCount = 0;
   timeLeft = gameLength;
   running = true;
   boardLocked = false;
@@ -325,6 +328,7 @@ function endGame() {
   setGridDisabled(true);
   finalScore.textContent = score;
   finalZapRate.textContent = formatRate(finalRate);
+  finalWrongCount.textContent = wrongCount;
   saveScoreButton.disabled = !leaderboardEndpoint;
   saveScoreStatus.textContent = leaderboardEndpoint
     ? ""
@@ -409,6 +413,7 @@ function handleCellClick(event) {
 
   if (!isMatch) {
     streak = 0;
+    wrongCount += 1;
     timeLeft = Math.max(0, timeLeft - wrongPenalty);
     updateStats();
     flashPenalty();
@@ -543,6 +548,7 @@ async function handleScoreSubmit(event) {
         score,
         zapsPerSecond: finalRate,
         elapsedSeconds: finalElapsedSeconds,
+        wrongCount,
       }),
     });
     const result = await response.json().catch(() => ({}));
