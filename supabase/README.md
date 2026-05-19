@@ -46,7 +46,7 @@ If score saving fails with `Leaderboard service is not configured`, re-check the
 
 ## 5. Configure the game
 
-Set the deployed function URL in `app-config.js`. If that file is missing, copy `app-config.example.js` to `app-config.js` first:
+Set the deployed function URL in `app-config.js`. If that file is missing, create it in the project root:
 
 ```js
 window.ZAP_IT_CONFIG = {

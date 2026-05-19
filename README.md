@@ -11,7 +11,6 @@ The app is intentionally lightweight: plain HTML, CSS, and JavaScript for the ga
 |-- index.html                         # Game markup and dialogs
 |-- styles.css                         # Responsive layout, themes, animation, and visual states
 |-- app.js                             # Game state, settings, scoring, rendering, and leaderboard calls
-|-- app-config.example.js              # Template for local leaderboard endpoint config
 |-- app-config.js                      # Local config, ignored by Git
 |-- assets/
 |   |-- brand/logo.svg                 # App logo
@@ -47,7 +46,7 @@ Follow [supabase/README.md](supabase/README.md) to:
 2. Apply the leaderboard migration.
 3. Set Supabase function secrets.
 4. Deploy the `leaderboard` function.
-5. Copy `app-config.example.js` to `app-config.js` and set `leaderboardEndpoint`.
+5. Create `app-config.js` and set `leaderboardEndpoint`.
 
 Do not put the Supabase service role key, anon key, or other secrets in frontend files. The browser should only know the public Edge Function URL.
 
