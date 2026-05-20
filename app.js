@@ -77,6 +77,12 @@ const playAgainButton = document.querySelector("#play-again-button");
 const leaderboardList = document.querySelector("#leaderboard-list");
 const leaderboardStatus = document.querySelector("#leaderboard-status");
 const refreshLeaderboardButton = document.querySelector("#refresh-leaderboard");
+const leaderboardButton = document.querySelector("#leaderboard-button");
+const leaderboardMenu = document.querySelector("#leaderboard-menu");
+const closeLeaderboardButton = document.querySelector("#close-leaderboard-button");
+const standaloneLeaderboardList = document.querySelector("#standalone-leaderboard-list");
+const standaloneLeaderboardStatus = document.querySelector("#standalone-leaderboard-status");
+const standaloneRefreshLeaderboardButton = document.querySelector("#standalone-refresh-leaderboard");
 const scoreForm = document.querySelector("#score-form");
 const playerNameInput = document.querySelector("#player-name");
 const saveScoreButton = document.querySelector("#save-score-button");
@@ -115,7 +121,11 @@ updateStats();
 
 startButton.addEventListener("click", startGame);
 playAgainButton.addEventListener("click", startGame);
-refreshLeaderboardButton.addEventListener("click", loadLeaderboard);
+refreshLeaderboardButton.addEventListener("click", () => loadLeaderboard());
+leaderboardButton.addEventListener("click", openLeaderboard);
+closeLeaderboardButton.addEventListener("click", closeLeaderboard);
+leaderboardMenu.addEventListener("click", handleLeaderboardBackdropClick);
+standaloneRefreshLeaderboardButton.addEventListener("click", () => loadLeaderboard({ standaloneOnly: true }));
 scoreForm.addEventListener("submit", handleScoreSubmit);
 settingsButton.addEventListener("click", openSettings);
 closeSettingsButton.addEventListener("click", closeSettings);
@@ -226,9 +236,31 @@ function handleSettingsBackdropClick(event) {
   }
 }
 
+function openLeaderboard() {
+  leaderboardMenu.hidden = false;
+  closeLeaderboardButton.focus();
+  loadLeaderboard({ standaloneOnly: true });
+}
+
+function closeLeaderboard() {
+  leaderboardMenu.hidden = true;
+  leaderboardButton.focus();
+}
+
+function handleLeaderboardBackdropClick(event) {
+  if (event.target === leaderboardMenu) {
+    closeLeaderboard();
+  }
+}
+
 function handleDocumentKeydown(event) {
   if (event.key === "Escape" && !settingsMenu.hidden) {
     closeSettings();
+    return;
+  }
+
+  if (event.key === "Escape" && !leaderboardMenu.hidden) {
+    closeLeaderboard();
   }
 }
 
@@ -567,16 +599,20 @@ async function handleScoreSubmit(event) {
   }
 }
 
-async function loadLeaderboard() {
-  leaderboardList.innerHTML = "";
+async function loadLeaderboard(options = {}) {
+  const targets = getLeaderboardTargets(options);
+
+  targets.forEach(({ list }) => {
+    list.innerHTML = "";
+  });
 
   if (!leaderboardEndpoint) {
-    leaderboardStatus.textContent = "Connect your Supabase Edge Function URL to show global scores.";
+    setLeaderboardStatus(targets, "Connect your Supabase Edge Function URL to show global scores.");
     return;
   }
 
-  leaderboardStatus.textContent = "Loading leaderboard...";
-  refreshLeaderboardButton.disabled = true;
+  setLeaderboardStatus(targets, "Loading leaderboard...");
+  setLeaderboardRefreshDisabled(targets, true);
 
   try {
     const response = await fetch(leaderboardEndpoint, {
@@ -590,17 +626,50 @@ async function loadLeaderboard() {
     }
 
     const entries = Array.isArray(result.scores) ? result.scores : [];
-    renderLeaderboard(entries);
-    leaderboardStatus.textContent = entries.length ? "" : "No scores yet.";
+    targets.forEach(({ list }) => renderLeaderboard(entries, list));
+    setLeaderboardStatus(targets, entries.length ? "" : "No scores yet.");
   } catch (error) {
-    leaderboardStatus.textContent = error.message || "Leaderboard could not be loaded.";
+    setLeaderboardStatus(targets, error.message || "Leaderboard could not be loaded.");
   } finally {
-    refreshLeaderboardButton.disabled = false;
+    setLeaderboardRefreshDisabled(targets, false);
   }
 }
 
-function renderLeaderboard(entries) {
-  leaderboardList.innerHTML = "";
+function getLeaderboardTargets({ standaloneOnly = false } = {}) {
+  const standaloneTarget = {
+    list: standaloneLeaderboardList,
+    status: standaloneLeaderboardStatus,
+    refreshButton: standaloneRefreshLeaderboardButton,
+  };
+
+  if (standaloneOnly) {
+    return [standaloneTarget];
+  }
+
+  return [
+    {
+      list: leaderboardList,
+      status: leaderboardStatus,
+      refreshButton: refreshLeaderboardButton,
+    },
+    standaloneTarget,
+  ];
+}
+
+function setLeaderboardStatus(targets, message) {
+  targets.forEach(({ status }) => {
+    status.textContent = message;
+  });
+}
+
+function setLeaderboardRefreshDisabled(targets, disabled) {
+  targets.forEach(({ refreshButton }) => {
+    refreshButton.disabled = disabled;
+  });
+}
+
+function renderLeaderboard(entries, list = leaderboardList) {
+  list.innerHTML = "";
 
   entries.slice(0, 5).forEach((entry, index) => {
     const item = document.createElement("li");
@@ -620,7 +689,7 @@ function renderLeaderboard(entries) {
     rateValue.textContent = `${formatRate(Number(entry.zapsPerSecond) || 0)}/sec`;
 
     item.append(rank, name, scoreValue, rateValue);
-    leaderboardList.append(item);
+    list.append(item);
   });
 }
 

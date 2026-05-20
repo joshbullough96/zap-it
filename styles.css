@@ -617,6 +617,30 @@ input:focus-visible {
   line-height: 1.2;
 }
 
+.leaderboard-refresh-button {
+  width: 100%;
+  margin-top: 0;
+}
+
+.leaderboard-modal .leaderboard-list {
+  min-height: 0;
+}
+
+.leaderboard-modal {
+  display: grid;
+  align-content: start;
+  gap: 0.7rem;
+}
+
+.leaderboard-modal .leaderboard-list,
+.leaderboard-modal .leaderboard-status {
+  margin-top: 0;
+}
+
+.leaderboard-modal .leaderboard-status:empty {
+  min-height: 0;
+}
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -631,6 +655,10 @@ input:focus-visible {
 }
 
 .settings-overlay {
+  z-index: 2;
+}
+
+.leaderboard-overlay {
   z-index: 2;
 }
 

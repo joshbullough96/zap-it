@@ -22,6 +22,15 @@
             <span id="time-left">60</span>
             <span>sec</span>
           </div>
+          <button id="leaderboard-button" class="icon-button" type="button" aria-label="Leaderboard" title="Leaderboard">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M8 21h8"></path>
+              <path d="M12 17v4"></path>
+              <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"></path>
+              <path d="M7 6H4a3 3 0 0 0 3 3"></path>
+              <path d="M17 6h3a3 3 0 0 1-3 3"></path>
+            </svg>
+          </button>
           <button id="settings-button" class="icon-button" type="button" aria-label="Settings" title="Settings">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <circle cx="12" cy="12" r="3"></circle>
@@ -139,6 +148,21 @@
             <input id="dark-mode-toggle" type="checkbox">
           </label>
         </form>
+      </section>
+    </div>
+
+    <div id="leaderboard-menu" class="overlay leaderboard-overlay" hidden>
+      <section class="result-panel leaderboard-modal" role="dialog" aria-modal="true" aria-labelledby="standalone-leaderboard-title">
+        <div class="leaderboard-heading">
+          <div>
+            <p class="eyebrow">Leaderboard</p>
+            <h2 id="standalone-leaderboard-title">Top 5</h2>
+          </div>
+          <button id="close-leaderboard-button" class="icon-button" type="button" aria-label="Close leaderboard" title="Close leaderboard">X</button>
+        </div>
+        <ol id="standalone-leaderboard-list" class="leaderboard-list" aria-live="polite"></ol>
+        <p id="standalone-leaderboard-status" class="leaderboard-status" role="status">Loading leaderboard...</p>
+        <button id="standalone-refresh-leaderboard" class="ghost-button leaderboard-refresh-button" type="button">Refresh</button>
       </section>
     </div>
 
