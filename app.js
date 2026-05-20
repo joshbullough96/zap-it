@@ -124,7 +124,6 @@ updateStats();
 startButton.addEventListener("click", startGame);
 playAgainButton.addEventListener("click", startGame);
 closeGameOverButton.addEventListener("click", closeGameOver);
-gameOver.addEventListener("click", handleGameOverBackdropClick);
 refreshLeaderboardButton.addEventListener("click", () => loadLeaderboard());
 leaderboardButton.addEventListener("click", openLeaderboard);
 closeLeaderboardButton.addEventListener("click", closeLeaderboard);
@@ -262,12 +261,6 @@ function closeGameOver() {
   startButton.focus();
 }
 
-function handleGameOverBackdropClick(event) {
-  if (event.target === gameOver) {
-    closeGameOver();
-  }
-}
-
 function handleDocumentKeydown(event) {
   if (event.key === "Escape" && !settingsMenu.hidden) {
     closeSettings();
@@ -279,9 +272,6 @@ function handleDocumentKeydown(event) {
     return;
   }
 
-  if (event.key === "Escape" && !gameOver.hidden) {
-    closeGameOver();
-  }
 }
 
 function handleThemeChange(event) {
