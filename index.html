@@ -170,8 +170,13 @@
 
     <div id="game-over" class="overlay" hidden>
       <section class="result-panel" role="dialog" aria-modal="true" aria-labelledby="result-title">
-        <p class="eyebrow">Time</p>
-        <h2 id="result-title">Game over</h2>
+        <div class="result-heading">
+          <div>
+            <p class="eyebrow">Time</p>
+            <h2 id="result-title">Game over</h2>
+          </div>
+          <button id="close-game-over-button" class="icon-button" type="button" aria-label="Close results" title="Close results">X</button>
+        </div>
         <p class="result-score">You zapped <strong id="final-score">0</strong> matches.</p>
         <p class="result-rate">Speed: <strong id="final-zap-rate">0.00</strong> zaps/sec</p>
         <p class="result-misses">Misses: <strong id="final-wrong-count">0</strong></p>

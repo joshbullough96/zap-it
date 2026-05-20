@@ -75,6 +75,7 @@ const finalScore = document.querySelector("#final-score");
 const finalZapRate = document.querySelector("#final-zap-rate");
 const finalWrongCount = document.querySelector("#final-wrong-count");
 const playAgainButton = document.querySelector("#play-again-button");
+const closeGameOverButton = document.querySelector("#close-game-over-button");
 const leaderboardList = document.querySelector("#leaderboard-list");
 const leaderboardStatus = document.querySelector("#leaderboard-status");
 const refreshLeaderboardButton = document.querySelector("#refresh-leaderboard");
@@ -122,6 +123,8 @@ updateStats();
 
 startButton.addEventListener("click", startGame);
 playAgainButton.addEventListener("click", startGame);
+closeGameOverButton.addEventListener("click", closeGameOver);
+gameOver.addEventListener("click", handleGameOverBackdropClick);
 refreshLeaderboardButton.addEventListener("click", () => loadLeaderboard());
 leaderboardButton.addEventListener("click", openLeaderboard);
 closeLeaderboardButton.addEventListener("click", closeLeaderboard);
@@ -254,6 +257,17 @@ function handleLeaderboardBackdropClick(event) {
   }
 }
 
+function closeGameOver() {
+  gameOver.hidden = true;
+  startButton.focus();
+}
+
+function handleGameOverBackdropClick(event) {
+  if (event.target === gameOver) {
+    closeGameOver();
+  }
+}
+
 function handleDocumentKeydown(event) {
   if (event.key === "Escape" && !settingsMenu.hidden) {
     closeSettings();
@@ -262,6 +276,11 @@ function handleDocumentKeydown(event) {
 
   if (event.key === "Escape" && !leaderboardMenu.hidden) {
     closeLeaderboard();
+    return;
+  }
+
+  if (event.key === "Escape" && !gameOver.hidden) {
+    closeGameOver();
   }
 }
 
