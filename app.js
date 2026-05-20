@@ -57,6 +57,7 @@ const fallbackBlockedWords = ["damn", "hell"];
 const config = window.ZAP_IT_CONFIG || {};
 const leaderboardEndpoint = String(config.leaderboardEndpoint || "").trim().replace(/\/$/, "");
 
+const gameArea = document.querySelector("#game-area");
 const grid = document.querySelector("#grid");
 const targetPanel = document.querySelector("#target-panel");
 const targetShape = document.querySelector("#target-shape");
@@ -323,6 +324,7 @@ function startGame() {
   matchEndedAt = null;
   finalElapsedSeconds = 0;
   finalRate = 0;
+  gameArea.scrollIntoView({ block: "start", behavior: "smooth" });
   document.body.classList.add("is-playing");
   grid.classList.remove("is-flipping");
   gameOver.hidden = true;

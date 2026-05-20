@@ -18,10 +18,6 @@
           </div>
         </div>
         <div class="top-actions">
-          <div class="timer" aria-live="polite">
-            <span id="time-left">60</span>
-            <span>sec</span>
-          </div>
           <button id="leaderboard-button" class="icon-button" type="button" aria-label="Leaderboard" title="Leaderboard">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M8 21h8"></path>
@@ -48,37 +44,43 @@
         </div>
       </section>
 
-      <section id="target-panel" class="target-panel is-waiting" aria-label="Target item">
-        <div>
-          <p id="target-name" class="target-name">Ready?</p>
-          <p id="target-help" class="label">Press start to begin</p>
-        </div>
-        <div id="target-shape" class="target-shape" aria-hidden="true"></div>
-      </section>
+      <div id="game-area" class="game-area">
+        <section id="target-panel" class="target-panel is-waiting" aria-label="Target item">
+          <div class="target-copy">
+            <p id="target-name" class="target-name">Ready?</p>
+            <p id="target-help" class="label">Press start to begin</p>
+          </div>
+          <div id="target-shape" class="target-shape" aria-hidden="true"></div>
+          <div class="timer" aria-live="polite">
+            <span id="time-left">60</span>
+            <span>sec</span>
+          </div>
+        </section>
 
-      <section class="score-row" aria-label="Score and game stats">
-        <div>
-          <span class="label">Score</span>
-          <strong id="score">0</strong>
-        </div>
-        <div>
-          <span class="label">Streak</span>
-          <strong id="streak">0</strong>
-        </div>
-        <div>
-          <span class="label">Zaps/sec</span>
-          <strong id="zap-rate">0.00</strong>
-        </div>
-      </section>
+        <section class="score-row" aria-label="Score and game stats">
+          <div>
+            <span class="label">Score</span>
+            <strong id="score">0</strong>
+          </div>
+          <div>
+            <span class="label">Streak</span>
+            <strong id="streak">0</strong>
+          </div>
+          <div>
+            <span class="label">Zaps/sec</span>
+            <strong id="zap-rate">0.00</strong>
+          </div>
+        </section>
 
-      <section class="board-wrap" aria-label="Zap grid">
-        <div id="grid" class="grid" role="grid" aria-describedby="message"></div>
-      </section>
+        <section class="board-wrap" aria-label="Zap grid">
+          <div id="grid" class="grid" role="grid" aria-describedby="message"></div>
+        </section>
 
-      <section class="controls" aria-label="Game controls">
-        <p id="message" class="message" aria-live="polite">Tap Start, then zap the matching shape as fast as you can.</p>
-        <button id="start-button" class="primary-button" type="button">Start</button>
-      </section>
+        <section class="controls" aria-label="Game controls">
+          <p id="message" class="message center" aria-live="polite">Tap Start, then find and zap the matching shape.</p>
+          <button id="start-button" class="primary-button" type="button">Start</button>
+        </section>
+      </div>
 
     </main>
 
