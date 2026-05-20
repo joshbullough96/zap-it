@@ -323,6 +323,7 @@ function startGame() {
   matchEndedAt = null;
   finalElapsedSeconds = 0;
   finalRate = 0;
+  document.body.classList.add("is-playing");
   grid.classList.remove("is-flipping");
   gameOver.hidden = true;
   scoreForm.reset();
@@ -356,6 +357,7 @@ function endGame() {
   clearRoundTimeouts();
   clearInterval(timerId);
   timerId = null;
+  document.body.classList.remove("is-playing");
   grid.classList.remove("is-flipping");
   setGridDisabled(true);
   finalScore.textContent = score;

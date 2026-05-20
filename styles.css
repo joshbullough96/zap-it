@@ -41,6 +41,11 @@ body {
   background: var(--body-bg);
 }
 
+body.is-playing {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body[data-theme="christmas"] {
   --accent: #167a4a;
   --accent-strong: #0e5835;
