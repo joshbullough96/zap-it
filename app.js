@@ -58,6 +58,17 @@ const config = window.ZAP_IT_CONFIG || {};
 const leaderboardEndpoint = String(config.leaderboardEndpoint || "").trim().replace(/\/$/, "");
 const recaptchaSiteKey = String(config.recaptchaSiteKey || "").trim();
 const recaptchaAction = "save_score";
+const gridKeyIndexes = {
+  7: 0,
+  8: 1,
+  9: 2,
+  4: 3,
+  5: 4,
+  6: 5,
+  1: 6,
+  2: 7,
+  3: 8,
+};
 
 const gameArea = document.querySelector("#game-area");
 const grid = document.querySelector("#grid");
@@ -81,6 +92,9 @@ const closeGameOverButton = document.querySelector("#close-game-over-button");
 const leaderboardList = document.querySelector("#leaderboard-list");
 const leaderboardStatus = document.querySelector("#leaderboard-status");
 const refreshLeaderboardButton = document.querySelector("#refresh-leaderboard");
+const instructionsButton = document.querySelector("#instructions-button");
+const instructionsMenu = document.querySelector("#instructions-menu");
+const closeInstructionsButton = document.querySelector("#close-instructions-button");
 const leaderboardButton = document.querySelector("#leaderboard-button");
 const leaderboardMenu = document.querySelector("#leaderboard-menu");
 const closeLeaderboardButton = document.querySelector("#close-leaderboard-button");
@@ -128,6 +142,9 @@ startButton.addEventListener("click", startGame);
 playAgainButton.addEventListener("click", startGame);
 closeGameOverButton.addEventListener("click", closeGameOver);
 refreshLeaderboardButton.addEventListener("click", () => loadLeaderboard());
+instructionsButton.addEventListener("click", openInstructions);
+closeInstructionsButton.addEventListener("click", closeInstructions);
+instructionsMenu.addEventListener("click", handleInstructionsBackdropClick);
 leaderboardButton.addEventListener("click", openLeaderboard);
 closeLeaderboardButton.addEventListener("click", closeLeaderboard);
 leaderboardMenu.addEventListener("click", handleLeaderboardBackdropClick);
@@ -264,9 +281,30 @@ function closeGameOver() {
   startButton.focus();
 }
 
+function openInstructions() {
+  instructionsMenu.hidden = false;
+  closeInstructionsButton.focus();
+}
+
+function closeInstructions() {
+  instructionsMenu.hidden = true;
+  instructionsButton.focus();
+}
+
+function handleInstructionsBackdropClick(event) {
+  if (event.target === instructionsMenu) {
+    closeInstructions();
+  }
+}
+
 function handleDocumentKeydown(event) {
   if (event.key === "Escape" && !settingsMenu.hidden) {
     closeSettings();
+    return;
+  }
+
+  if (event.key === "Escape" && !instructionsMenu.hidden) {
+    closeInstructions();
     return;
   }
 
@@ -275,6 +313,32 @@ function handleDocumentKeydown(event) {
     return;
   }
 
+  handleGridKeydown(event);
+}
+
+function handleGridKeydown(event) {
+  if (!running || boardLocked || isTextEntryElement(event.target)) return;
+
+  const gridIndex = gridKeyIndexes[event.key];
+  if (gridIndex === undefined) return;
+
+  const button = grid.querySelector(`[data-index="${gridIndex}"]`);
+  if (!button || button.disabled) return;
+
+  event.preventDefault();
+  button.click();
+}
+
+function isTextEntryElement(element) {
+  if (!element || element === document.body) return false;
+
+  const tagName = element.tagName;
+  return (
+    element.isContentEditable ||
+    tagName === "INPUT" ||
+    tagName === "TEXTAREA" ||
+    tagName === "SELECT"
+  );
 }
 
 function handleThemeChange(event) {
