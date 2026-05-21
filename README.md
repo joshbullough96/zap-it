@@ -46,9 +46,10 @@ Follow [supabase/README.md](supabase/README.md) to:
 2. Apply the leaderboard migration.
 3. Set Supabase function secrets.
 4. Deploy the `leaderboard` function.
-5. Create `app-config.js` and set `leaderboardEndpoint`.
+5. Create `app-config.js` and set `leaderboardEndpoint` plus the public reCAPTCHA site key.
 
 Do not put the Supabase service role key, anon key, or other secrets in frontend files. The browser should only know the public Edge Function URL in `app-config.js`.
+Do not put the Google Cloud reCAPTCHA API key in frontend files. The browser should only know the public reCAPTCHA site key.
 
 ## Gameplay Rules
 
@@ -68,6 +69,7 @@ Keep changes small and aligned with the current static-app structure.
 - Keep the game usable without Supabase. Missing leaderboard config should disable score saving gracefully, not block play.
 - Preserve the privacy note and player-name validation when changing score submission.
 - Keep leaderboard writes behind the Supabase Edge Function. The frontend must not call Supabase with privileged credentials.
+- Keep reCAPTCHA verification in the Supabase Edge Function. The frontend should only request and send a reCAPTCHA token.
 - Keep layout mobile-first. The main game surface is designed around a narrow, phone-friendly play area.
 - Avoid UI text that explains implementation details. On-screen text should help players play the game.
 - Maintain keyboard and screen-reader affordances already present in the markup, including buttons, labels, `aria-live` regions, dialogs, and focus behavior.

@@ -24,9 +24,14 @@ Set these Zap-specific secrets for the Edge Function:
 ```sh
 supabase secrets set ZAP_SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co"
 supabase secrets set ZAP_SUPABASE_SERVICE_ROLE_KEY="YOUR_SERVICE_ROLE_KEY"
+supabase secrets set ZAP_RECAPTCHA_PROJECT_ID="YOUR_GOOGLE_CLOUD_PROJECT_ID"
+supabase secrets set ZAP_RECAPTCHA_SITE_KEY="YOUR_RECAPTCHA_SITE_KEY"
+supabase secrets set ZAP_RECAPTCHA_API_KEY="YOUR_RECAPTCHA_API_KEY"
 ```
 
 Do not put the service role key in frontend files.
+
+The reCAPTCHA site key is public and must also be set in `app-config.js`. Keep the Google Cloud API key in Supabase function secrets only. Score-based reCAPTCHA rejects saves below `0.5` by default; to change that threshold, set `ZAP_RECAPTCHA_MIN_SCORE` to a value between `0` and `1`.
 
 ## 4. Deploy the function
 
@@ -51,7 +56,8 @@ Set the deployed function URL in `app-config.js`. If that file is missing, creat
 ```js
 window.ZAP_IT_CONFIG = {
   leaderboardEndpoint: "https://YOUR_PROJECT_REF.supabase.co/functions/v1/leaderboard",
+  recaptchaSiteKey: "YOUR_RECAPTCHA_SITE_KEY",
 };
 ```
 
-`app-config.js` contains only the public Edge Function URL, so it can be committed for static hosting.
+`app-config.js` contains only public values, so it can be committed for static hosting.

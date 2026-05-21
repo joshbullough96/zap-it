@@ -56,6 +56,8 @@ const playerNamePattern = /^[A-Za-z0-9 _-]+$/;
 const fallbackBlockedWords = ["damn", "hell"];
 const config = window.ZAP_IT_CONFIG || {};
 const leaderboardEndpoint = String(config.leaderboardEndpoint || "").trim().replace(/\/$/, "");
+const recaptchaSiteKey = String(config.recaptchaSiteKey || "").trim();
+const recaptchaAction = "save_score";
 
 const gameArea = document.querySelector("#game-area");
 const grid = document.querySelector("#grid");
@@ -116,6 +118,7 @@ let darkMode = getSavedDarkMode();
 let oneColorValue = getSavedOneColor();
 let shapeRenderCount = 0;
 let combos = buildCombos(activeTheme);
+let recaptchaScriptPromise = null;
 
 applyPreferences();
 renderEmptyGrid();
@@ -570,6 +573,11 @@ async function handleScoreSubmit(event) {
     return;
   }
 
+  if (!recaptchaSiteKey) {
+    saveScoreStatus.textContent = "Score saving needs reCAPTCHA setup.";
+    return;
+  }
+
   const playerName = playerNameInput.value.trim().replace(/\s+/g, " ");
   const validationMessage = validatePlayerName(playerName);
 
@@ -582,6 +590,7 @@ async function handleScoreSubmit(event) {
   saveScoreStatus.textContent = "Saving score...";
 
   try {
+    const recaptchaToken = await getRecaptchaToken();
     const response = await fetch(leaderboardEndpoint, {
       method: "POST",
       headers: {
@@ -594,6 +603,7 @@ async function handleScoreSubmit(event) {
         zapsPerSecond: finalRate,
         elapsedSeconds: finalElapsedSeconds,
         wrongCount,
+        recaptchaToken,
       }),
     });
     const result = await response.json().catch(() => ({}));
@@ -646,6 +656,50 @@ async function loadLeaderboard(options = {}) {
   } finally {
     setLeaderboardRefreshDisabled(targets, false);
   }
+}
+
+async function getRecaptchaToken() {
+  await loadRecaptchaScript();
+
+  return new Promise((resolve, reject) => {
+    window.grecaptcha.enterprise.ready(async () => {
+      try {
+        const token = await window.grecaptcha.enterprise.execute(recaptchaSiteKey, { action: recaptchaAction });
+
+        if (!token) {
+          reject(new Error("reCAPTCHA could not verify this save."));
+          return;
+        }
+
+        resolve(token);
+      } catch {
+        reject(new Error("reCAPTCHA could not verify this save."));
+      }
+    });
+  });
+}
+
+function loadRecaptchaScript() {
+  if (window.grecaptcha?.enterprise) {
+    return Promise.resolve();
+  }
+
+  if (recaptchaScriptPromise) {
+    return recaptchaScriptPromise;
+  }
+
+  recaptchaScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+
+    script.src = `https://www.google.com/recaptcha/enterprise.js?render=${encodeURIComponent(recaptchaSiteKey)}`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("reCAPTCHA could not be loaded."));
+    document.head.append(script);
+  });
+
+  return recaptchaScriptPromise;
 }
 
 function getLeaderboardTargets({ standaloneOnly = false } = {}) {
