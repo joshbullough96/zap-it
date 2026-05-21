@@ -836,6 +836,23 @@ input:focus-visible {
   line-height: 1.2;
 }
 
+.recaptcha-disclosure {
+  margin: -0.1rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.recaptcha-disclosure a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.12em;
+}
+
+.grecaptcha-badge {
+  visibility: hidden;
+}
+
 .score-submit-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 6rem;
