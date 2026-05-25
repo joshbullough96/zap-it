@@ -320,6 +320,11 @@ function handleDocumentKeydown(event) {
     return;
   }
 
+  if (event.key === "Escape" && !gameOver.hidden) {
+    closeGameOver();
+    return;
+  }
+
   if (event.code === "Space" && shouldSpaceStartGame(event)) {
     event.preventDefault();
     startGame();
@@ -330,10 +335,11 @@ function handleDocumentKeydown(event) {
 }
 
 function shouldSpaceStartGame(event) {
-  if (running || isTextEntryElement(event.target)) return false;
-  if (!gameOver.hidden) return true;
+  if (isTextEntryElement(event.target)) return false;
+  if (!gameOver.hidden) return false;
+  if (!settingsMenu.hidden || !instructionsMenu.hidden || !leaderboardMenu.hidden) return false;
 
-  return document.activeElement === document.body || document.activeElement === startButton;
+  return true;
 }
 
 function handleGridKeydown(event) {
