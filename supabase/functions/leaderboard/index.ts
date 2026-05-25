@@ -19,13 +19,13 @@ Deno.serve(async (request) => {
 
   try {
     if (request.method === "GET") {
-      return jsonResponse(await getLeaderboard());
+      return jsonResponse(await getLeaderboard(request));
     }
 
     if (request.method === "POST") {
       const payload = await request.json().catch(() => null);
-      await saveScore(payload, request);
-      return jsonResponse({ ok: true }, 201);
+      const scoreId = await saveScore(payload, request);
+      return jsonResponse({ ok: true, scoreId }, 201);
     }
 
     return jsonResponse({ error: "Method not allowed." }, 405);
@@ -39,28 +39,17 @@ Deno.serve(async (request) => {
   }
 });
 
-async function getLeaderboard() {
-  const endpoint = `${getRestUrl()}?select=player_name,score,zaps_per_second,elapsed_seconds,wrong_count,created_at&order=score.desc,zaps_per_second.desc,created_at.asc&limit=5`;
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: getSupabaseHeaders(),
-  });
+async function getLeaderboard(request: Request) {
+  const requestUrl = new URL(request.url);
+  const rows = await fetchLeaderboardRows(undefined, 5, 0);
+  const result: Record<string, unknown> = { scores: rows.map(mapScoreRow) };
+  const context = await getLeaderboardContext(requestUrl);
 
-  if (!response.ok) {
-    throw new Error(await getSupabaseErrorMessage(response, "Leaderboard could not be loaded."));
+  if (context) {
+    result.context = context;
   }
 
-  const rows = await response.json();
-  const scores = rows.map((row: Record<string, unknown>) => ({
-    playerName: row.player_name,
-    score: row.score,
-    zapsPerSecond: row.zaps_per_second,
-    elapsedSeconds: row.elapsed_seconds,
-    wrongCount: row.wrong_count,
-    createdAt: row.created_at,
-  }));
-
-  return { scores };
+  return result;
 }
 
 async function saveScore(payload: unknown, request: Request) {
@@ -88,12 +77,12 @@ async function saveScore(payload: unknown, request: Request) {
     throw new Error("Please choose a different name.");
   }
 
-  const response = await fetch(getRestUrl(), {
+  const response = await fetch(`${getRestUrl()}?select=id`, {
     method: "POST",
     headers: {
       ...getSupabaseHeaders(),
       "Content-Type": "application/json",
-      Prefer: "return=minimal",
+      Prefer: "return=representation",
     },
     body: JSON.stringify({
       player_name: playerName,
@@ -107,6 +96,200 @@ async function saveScore(payload: unknown, request: Request) {
   if (!response.ok) {
     throw new Error(await getSupabaseErrorMessage(response, "Score could not be saved."));
   }
+
+  const rows = await response.json().catch(() => []);
+  const scoreId = normalizeScoreId(rows?.[0]?.id);
+
+  if (!scoreId) {
+    throw new Error("Score could not be saved.");
+  }
+
+  return scoreId;
+}
+
+async function getLeaderboardContext(requestUrl: URL) {
+  const scoreId = requestUrl.searchParams.get("scoreId");
+
+  if (scoreId) {
+    return getSavedScoreContext(normalizeScoreId(scoreId));
+  }
+
+  if (!requestUrl.searchParams.has("score")) {
+    return null;
+  }
+
+  return getPreviewScoreContext({
+    playerName: "Your run",
+    score: normalizeIntegerParam(requestUrl.searchParams.get("score"), "score", 0, 1000),
+    zapsPerSecond: normalizeNumberParam(requestUrl.searchParams.get("zapsPerSecond"), "zaps per second", 0, 100),
+    elapsedSeconds: normalizeNumberParam(requestUrl.searchParams.get("elapsedSeconds"), "elapsed seconds", 0.01, 600),
+    wrongCount: normalizeIntegerParam(requestUrl.searchParams.get("wrongCount") || "0", "miss count", 0, 1000),
+  });
+}
+
+async function getSavedScoreContext(scoreId: number) {
+  if (!scoreId) {
+    throw new Error("Invalid score placement request.");
+  }
+
+  const rows = await fetchLeaderboardRows({ id: `eq.${scoreId}` }, 1, 0);
+  const target = rows[0];
+
+  if (!target) {
+    throw new Error("Saved score could not be found.");
+  }
+
+  return buildContext("saved", mapTargetRow(target));
+}
+
+async function getPreviewScoreContext(target: LeaderboardTarget) {
+  return buildContext("preview", target);
+}
+
+async function buildContext(mode: "preview" | "saved", target: LeaderboardTarget) {
+  const totalExistingScores = await fetchLeaderboardCount();
+  const higherRankFilter = buildHigherRankFilter(target, mode);
+  const lowerRankFilter = buildLowerRankFilter(target, mode);
+  const higherCount = await fetchLeaderboardCount(higherRankFilter);
+  const aboveOffset = Math.max(0, higherCount - 2);
+  const aboveRows = await fetchLeaderboardRows(higherRankFilter, 2, aboveOffset);
+  const belowRows = await fetchLeaderboardRows(lowerRankFilter, 2, 0);
+  const rank = higherCount + 1;
+  const totalScores = mode === "preview" ? totalExistingScores + 1 : totalExistingScores;
+  const nearbyScores = [
+    ...aboveRows.map((row, index) => ({
+      ...mapScoreRow(row),
+      rank: aboveOffset + index + 1,
+    })),
+    {
+      ...target,
+      rank,
+      isCurrent: true,
+    },
+    ...belowRows.map((row, index) => ({
+      ...mapScoreRow(row),
+      rank: rank + index + 1,
+    })),
+  ];
+
+  return {
+    mode,
+    rank,
+    totalScores,
+    scores: nearbyScores,
+    nextToBeat: aboveRows.length ? mapScoreRow(aboveRows[aboveRows.length - 1]) : null,
+  };
+}
+
+async function fetchLeaderboardRows(filters: Record<string, string> = {}, limit = 5, offset = 0) {
+  const endpoint = makeRestUrl({
+    select: "id,player_name,score,zaps_per_second,elapsed_seconds,wrong_count,created_at",
+    order: "score.desc,zaps_per_second.desc,created_at.asc,id.asc",
+    limit: String(limit),
+    offset: String(offset),
+    ...filters,
+  });
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers: getSupabaseHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getSupabaseErrorMessage(response, "Leaderboard could not be loaded."));
+  }
+
+  return await response.json() as LeaderboardRow[];
+}
+
+async function fetchLeaderboardCount(filters: Record<string, string> = {}) {
+  const endpoint = makeRestUrl({
+    select: "id",
+    ...filters,
+  });
+  const response = await fetch(endpoint, {
+    method: "HEAD",
+    headers: {
+      ...getSupabaseHeaders(),
+      Prefer: "count=exact",
+      Range: "0-0",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await getSupabaseErrorMessage(response, "Leaderboard could not be loaded."));
+  }
+
+  const contentRange = response.headers.get("content-range") || "";
+  const total = Number(contentRange.split("/").pop());
+
+  return Number.isFinite(total) ? total : 0;
+}
+
+function buildHigherRankFilter(target: LeaderboardTarget, mode: "preview" | "saved") {
+  const score = target.score;
+  const rate = target.zapsPerSecond;
+  const conditions = [
+    `score.gt.${score}`,
+    `and(score.eq.${score},zaps_per_second.gt.${rate})`,
+  ];
+
+  if (mode === "preview") {
+    conditions.push(`and(score.eq.${score},zaps_per_second.eq.${rate})`);
+  } else if (target.createdAt && target.id) {
+    conditions.push(`and(score.eq.${score},zaps_per_second.eq.${rate},created_at.lt.${target.createdAt})`);
+    conditions.push(`and(score.eq.${score},zaps_per_second.eq.${rate},created_at.eq.${target.createdAt},id.lt.${target.id})`);
+  }
+
+  return { or: `(${conditions.join(",")})` };
+}
+
+function buildLowerRankFilter(target: LeaderboardTarget, mode: "preview" | "saved") {
+  const score = target.score;
+  const rate = target.zapsPerSecond;
+  const conditions = [
+    `score.lt.${score}`,
+    `and(score.eq.${score},zaps_per_second.lt.${rate})`,
+  ];
+
+  if (mode === "saved" && target.createdAt && target.id) {
+    conditions.push(`and(score.eq.${score},zaps_per_second.eq.${rate},created_at.gt.${target.createdAt})`);
+    conditions.push(`and(score.eq.${score},zaps_per_second.eq.${rate},created_at.eq.${target.createdAt},id.gt.${target.id})`);
+  }
+
+  return { or: `(${conditions.join(",")})` };
+}
+
+function makeRestUrl(params: Record<string, string>) {
+  const endpoint = new URL(getRestUrl());
+
+  Object.entries(params).forEach(([key, value]) => {
+    endpoint.searchParams.set(key, value);
+  });
+
+  return endpoint.toString();
+}
+
+function mapScoreRow(row: LeaderboardRow) {
+  return {
+    playerName: row.player_name,
+    score: row.score,
+    zapsPerSecond: row.zaps_per_second,
+    elapsedSeconds: row.elapsed_seconds,
+    wrongCount: row.wrong_count,
+    createdAt: row.created_at,
+  };
+}
+
+function mapTargetRow(row: LeaderboardRow): LeaderboardTarget {
+  return {
+    id: normalizeScoreId(row.id),
+    playerName: String(row.player_name || "Player"),
+    score: Number(row.score) || 0,
+    zapsPerSecond: Number(row.zaps_per_second) || 0,
+    elapsedSeconds: Number(row.elapsed_seconds) || 0,
+    wrongCount: Number(row.wrong_count) || 0,
+    createdAt: String(row.created_at || ""),
+  };
 }
 
 async function verifyRecaptcha(token: unknown, request: Request) {
@@ -225,6 +408,32 @@ function normalizeNumber(value: unknown, label: string, minimum: number, maximum
   return Math.round(value * 100) / 100;
 }
 
+function normalizeIntegerParam(value: string | null, label: string, minimum: number, maximum: number) {
+  if (value === null || !/^\d+$/.test(value)) {
+    throw new Error(`Invalid ${label}.`);
+  }
+
+  return normalizeInteger(Number(value), label, minimum, maximum);
+}
+
+function normalizeNumberParam(value: string | null, label: string, minimum: number, maximum: number) {
+  if (value === null || !Number.isFinite(Number(value))) {
+    throw new Error(`Invalid ${label}.`);
+  }
+
+  return normalizeNumber(Number(value), label, minimum, maximum);
+}
+
+function normalizeScoreId(value: unknown) {
+  const scoreId = typeof value === "number" ? value : Number(value);
+
+  if (!Number.isInteger(scoreId) || scoreId <= 0) {
+    return 0;
+  }
+
+  return scoreId;
+}
+
 function getRestUrl() {
   const supabaseUrl = getRequiredEnv("ZAP_SUPABASE_URL");
 
@@ -285,4 +494,24 @@ type RecaptchaAssessment = {
   riskAnalysis?: {
     score?: number;
   };
+};
+
+type LeaderboardRow = {
+  id: number | string;
+  player_name: unknown;
+  score: unknown;
+  zaps_per_second: unknown;
+  elapsed_seconds: unknown;
+  wrong_count: unknown;
+  created_at: unknown;
+};
+
+type LeaderboardTarget = {
+  id?: number;
+  playerName: string;
+  score: number;
+  zapsPerSecond: number;
+  elapsedSeconds: number;
+  wrongCount: number;
+  createdAt?: string;
 };

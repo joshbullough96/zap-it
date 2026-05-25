@@ -36,6 +36,8 @@ This app does not require a build step.
 
 Opening `index.html` directly may work for the basic game, but a local server is closer to deployment behavior and avoids browser restrictions around local files.
 
+When the app runs on `localhost`, `127.0.0.1`, or directly from a file, `app-config.js` enables a mock leaderboard with seed scores. This lets the Top 5, placement preview, and saved-rank state be tested without deploying the Supabase function.
+
 ## Leaderboard Setup
 
 The game works without Supabase, but saving scores and loading the global leaderboard require a deployed Supabase Edge Function.
@@ -59,7 +61,8 @@ Do not put the Google Cloud reCAPTCHA API key in frontend files. The browser sho
 - A wrong tap resets the streak and subtracts 10 seconds.
 - The game lasts up to 60 seconds.
 - Zaps per second is calculated from score divided by elapsed play time.
-- The leaderboard stores player name, score, zaps per second, elapsed seconds, and creation time.
+- The leaderboard stores player name, score, zaps per second, elapsed seconds, misses, and creation time.
+- The game-over screen shows a global Top 5 plus an "Around you" placement preview. After a score is saved, that placement refreshes against the exact saved run.
 
 ## Development Guidelines
 
@@ -91,7 +94,7 @@ AI assistants should follow these rules:
 - Do not invent a package manager, bundler, test framework, or app framework unless the requested feature truly needs one.
 - Do not remove existing accessibility attributes while restructuring markup.
 - Do not commit or expose Supabase service role keys, anon keys, or other local secrets. `app-config.js` may be committed only because it contains the public Edge Function URL.
-- Do not change the leaderboard API contract casually. The frontend expects `{ scores: [...] }` from `GET` and `{ ok: true }` from successful `POST`.
+- Do not change the leaderboard API contract casually. The frontend expects `{ scores: [...] }` from `GET`, optional `context` data when placement query params are present, and `{ ok: true, scoreId }` from successful `POST`.
 - Keep validation duplicated intentionally where it protects the user experience: the browser gives quick feedback, and the Edge Function/database enforce server-side safety.
 - After frontend changes, run the game in a browser-sized viewport and check start, correct tap, wrong tap, game over, settings, and leaderboard-empty states.
 - After leaderboard changes, test both missing-config behavior and configured Edge Function behavior when possible.

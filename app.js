@@ -58,6 +58,9 @@ const config = window.ZAP_IT_CONFIG || {};
 const leaderboardEndpoint = String(config.leaderboardEndpoint || "").trim().replace(/\/$/, "");
 const recaptchaSiteKey = String(config.recaptchaSiteKey || "").trim();
 const recaptchaAction = "save_score";
+const useMockLeaderboard = Boolean(config.useMockLeaderboard && Array.isArray(config.mockLeaderboardScores));
+const leaderboardAvailable = Boolean(leaderboardEndpoint || useMockLeaderboard);
+let mockLeaderboardScores = useMockLeaderboard ? config.mockLeaderboardScores.map(normalizeMockLeaderboardScore).filter(Boolean) : [];
 const gridKeyIndexes = {
   7: 0,
   8: 1,
@@ -92,6 +95,9 @@ const closeGameOverButton = document.querySelector("#close-game-over-button");
 const leaderboardList = document.querySelector("#leaderboard-list");
 const leaderboardStatus = document.querySelector("#leaderboard-status");
 const refreshLeaderboardButton = document.querySelector("#refresh-leaderboard");
+const leaderboardContextList = document.querySelector("#leaderboard-context-list");
+const leaderboardContextStatus = document.querySelector("#leaderboard-context-status");
+const leaderboardContextTitle = document.querySelector("#leaderboard-context-title");
 const instructionsButton = document.querySelector("#instructions-button");
 const instructionsMenu = document.querySelector("#instructions-menu");
 const closeInstructionsButton = document.querySelector("#close-instructions-button");
@@ -121,6 +127,7 @@ let target = null;
 let running = false;
 let boardLocked = false;
 let scoreSaved = false;
+let savedScoreId = null;
 let timerId = null;
 let matchStartedAt = null;
 let matchEndedAt = null;
@@ -141,7 +148,7 @@ updateStats();
 startButton.addEventListener("click", startGame);
 playAgainButton.addEventListener("click", startGame);
 closeGameOverButton.addEventListener("click", closeGameOver);
-refreshLeaderboardButton.addEventListener("click", () => loadLeaderboard());
+refreshLeaderboardButton.addEventListener("click", () => loadLeaderboard({ includeContext: !gameOver.hidden }));
 instructionsButton.addEventListener("click", openInstructions);
 closeInstructionsButton.addEventListener("click", closeInstructions);
 instructionsMenu.addEventListener("click", handleInstructionsBackdropClick);
@@ -313,7 +320,20 @@ function handleDocumentKeydown(event) {
     return;
   }
 
+  if (event.code === "Space" && shouldSpaceStartGame(event)) {
+    event.preventDefault();
+    startGame();
+    return;
+  }
+
   handleGridKeydown(event);
+}
+
+function shouldSpaceStartGame(event) {
+  if (running || isTextEntryElement(event.target)) return false;
+  if (!gameOver.hidden) return true;
+
+  return document.activeElement === document.body || document.activeElement === startButton;
 }
 
 function handleGridKeydown(event) {
@@ -396,6 +416,7 @@ function startGame() {
   running = true;
   boardLocked = false;
   scoreSaved = false;
+  savedScoreId = null;
   matchStartedAt = performance.now();
   matchEndedAt = null;
   finalElapsedSeconds = 0;
@@ -404,6 +425,7 @@ function startGame() {
   document.body.classList.add("is-playing");
   grid.classList.remove("is-flipping");
   gameOver.hidden = true;
+  resetLeaderboardContext();
   scoreForm.reset();
   saveScoreStatus.textContent = "";
   saveScoreButton.disabled = false;
@@ -441,8 +463,9 @@ function endGame() {
   finalScore.textContent = score;
   finalZapRate.textContent = formatRate(finalRate);
   finalWrongCount.textContent = wrongCount;
-  saveScoreButton.disabled = !leaderboardEndpoint;
-  saveScoreStatus.textContent = leaderboardEndpoint
+  resetLeaderboardContext("Loading placement...");
+  saveScoreButton.disabled = !leaderboardAvailable;
+  saveScoreStatus.textContent = leaderboardAvailable
     ? ""
     : "Add app-config.js with your Supabase Edge Function URL to save scores.";
   gameOver.hidden = false;
@@ -450,9 +473,9 @@ function endGame() {
   targetHelp.hidden = false;
   messageEl.textContent = `Time is up. Final score: ${score}.`;
   updateStats();
-  loadLeaderboard();
+  loadLeaderboard({ includeContext: true });
 
-  if (leaderboardEndpoint) {
+  if (leaderboardAvailable) {
     playerNameInput.focus();
   } else {
     playAgainButton.focus();
@@ -632,12 +655,12 @@ async function handleScoreSubmit(event) {
 
   if (scoreSaved) return;
 
-  if (!leaderboardEndpoint) {
+  if (!leaderboardAvailable) {
     saveScoreStatus.textContent = "Leaderboard setup is not connected yet.";
     return;
   }
 
-  if (!recaptchaSiteKey) {
+  if (!useMockLeaderboard && !recaptchaSiteKey) {
     saveScoreStatus.textContent = "Score saving needs reCAPTCHA setup.";
     return;
   }
@@ -654,36 +677,62 @@ async function handleScoreSubmit(event) {
   saveScoreStatus.textContent = "Saving score...";
 
   try {
-    const recaptchaToken = await getRecaptchaToken();
-    const response = await fetch(leaderboardEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        playerName,
-        score,
-        zapsPerSecond: finalRate,
-        elapsedSeconds: finalElapsedSeconds,
-        wrongCount,
-        recaptchaToken,
-      }),
-    });
-    const result = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(getResponseErrorMessage(result, "Score could not be saved."));
-    }
+    const result = useMockLeaderboard
+      ? saveMockScore({ playerName, score, zapsPerSecond: finalRate, elapsedSeconds: finalElapsedSeconds, wrongCount })
+      : await saveRemoteScore({ playerName, score, zapsPerSecond: finalRate, elapsedSeconds: finalElapsedSeconds, wrongCount });
 
     scoreSaved = true;
+    savedScoreId = result.scoreId || null;
     playerNameInput.value = playerName;
     saveScoreStatus.textContent = "Score saved.";
-    await loadLeaderboard();
+    await loadLeaderboard({ includeContext: true });
   } catch (error) {
     saveScoreButton.disabled = false;
     saveScoreStatus.textContent = error.message || "Score could not be saved.";
   }
+}
+
+async function saveRemoteScore({ playerName, score, zapsPerSecond, elapsedSeconds, wrongCount }) {
+  const recaptchaToken = await getRecaptchaToken();
+  const response = await fetch(leaderboardEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      playerName,
+      score,
+      zapsPerSecond,
+      elapsedSeconds,
+      wrongCount,
+      recaptchaToken,
+    }),
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(getResponseErrorMessage(result, "Score could not be saved."));
+  }
+
+  return result;
+}
+
+function saveMockScore({ playerName, score, zapsPerSecond, elapsedSeconds, wrongCount }) {
+  const nextId = mockLeaderboardScores.reduce((highestId, entry) => Math.max(highestId, Number(entry.id) || 0), 0) + 1;
+  const savedScore = {
+    id: nextId,
+    playerName,
+    score,
+    zapsPerSecond: Math.round(zapsPerSecond * 100) / 100,
+    elapsedSeconds: Math.round(elapsedSeconds * 100) / 100,
+    wrongCount,
+    createdAt: new Date().toISOString(),
+  };
+
+  mockLeaderboardScores.push(savedScore);
+
+  return { ok: true, scoreId: nextId };
 }
 
 async function loadLeaderboard(options = {}) {
@@ -693,8 +742,15 @@ async function loadLeaderboard(options = {}) {
     list.innerHTML = "";
   });
 
-  if (!leaderboardEndpoint) {
+  if (options.includeContext) {
+    resetLeaderboardContext("Loading placement...");
+  }
+
+  if (!leaderboardAvailable) {
     setLeaderboardStatus(targets, "Connect your Supabase Edge Function URL to show global scores.");
+    if (options.includeContext) {
+      resetLeaderboardContext("Connect your leaderboard to show run placement.");
+    }
     return;
   }
 
@@ -702,24 +758,172 @@ async function loadLeaderboard(options = {}) {
   setLeaderboardRefreshDisabled(targets, true);
 
   try {
-    const response = await fetch(leaderboardEndpoint, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    });
-    const result = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(getResponseErrorMessage(result, "Leaderboard could not be loaded."));
-    }
+    const result = useMockLeaderboard ? getMockLeaderboardResult(options) : await fetchRemoteLeaderboard(options);
 
     const entries = Array.isArray(result.scores) ? result.scores : [];
     targets.forEach(({ list }) => renderLeaderboard(entries, list));
     setLeaderboardStatus(targets, entries.length ? "" : "No scores yet.");
+
+    if (options.includeContext) {
+      renderLeaderboardContext(result.context);
+    }
   } catch (error) {
     setLeaderboardStatus(targets, error.message || "Leaderboard could not be loaded.");
+    if (options.includeContext) {
+      resetLeaderboardContext(error.message || "Run placement could not be loaded.");
+    }
   } finally {
     setLeaderboardRefreshDisabled(targets, false);
   }
+}
+
+async function fetchRemoteLeaderboard(options) {
+  const response = await fetch(getLeaderboardRequestUrl(options), {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(getResponseErrorMessage(result, "Leaderboard could not be loaded."));
+  }
+
+  return result;
+}
+
+function getMockLeaderboardResult({ includeContext = false } = {}) {
+  const sortedScores = getSortedLeaderboardScores(mockLeaderboardScores);
+  const result = { scores: sortedScores.slice(0, 5).map(toLeaderboardEntry) };
+
+  if (includeContext) {
+    result.context = savedScoreId
+      ? getSavedMockContext(sortedScores, savedScoreId)
+      : getPreviewMockContext(sortedScores);
+  }
+
+  return result;
+}
+
+function getSavedMockContext(sortedScores, scoreId) {
+  const targetIndex = sortedScores.findIndex((entry) => Number(entry.id) === Number(scoreId));
+
+  if (targetIndex < 0) {
+    return null;
+  }
+
+  const rank = targetIndex + 1;
+  const above = sortedScores.slice(Math.max(0, targetIndex - 2), targetIndex);
+  const below = sortedScores.slice(targetIndex + 1, targetIndex + 3);
+
+  return makeMockContext("saved", sortedScores[targetIndex], rank, sortedScores.length, above, below);
+}
+
+function getPreviewMockContext(sortedScores) {
+  const target = {
+    playerName: "Your run",
+    score,
+    zapsPerSecond: Math.round(finalRate * 100) / 100,
+    elapsedSeconds: Math.round(finalElapsedSeconds * 100) / 100,
+    wrongCount,
+    createdAt: new Date().toISOString(),
+  };
+  const above = sortedScores.filter((entry) => comparePreviewPlacement(entry, target) < 0);
+  const below = sortedScores.filter((entry) => comparePreviewPlacement(entry, target) > 0);
+  const rank = above.length + 1;
+
+  return makeMockContext("preview", target, rank, sortedScores.length + 1, above.slice(-2), below.slice(0, 2));
+}
+
+function makeMockContext(mode, target, rank, totalScores, above, below) {
+  return {
+    mode,
+    rank,
+    totalScores,
+    scores: [
+      ...above.map((entry, index) => ({
+        ...toLeaderboardEntry(entry),
+        rank: rank - above.length + index,
+      })),
+      {
+        ...toLeaderboardEntry(target),
+        rank,
+        isCurrent: true,
+      },
+      ...below.map((entry, index) => ({
+        ...toLeaderboardEntry(entry),
+        rank: rank + index + 1,
+      })),
+    ],
+    nextToBeat: above.length ? toLeaderboardEntry(above[above.length - 1]) : null,
+  };
+}
+
+function comparePreviewPlacement(entry, target) {
+  if (entry.score !== target.score) return target.score - entry.score;
+  if (entry.zapsPerSecond !== target.zapsPerSecond) return target.zapsPerSecond - entry.zapsPerSecond;
+  return -1;
+}
+
+function getSortedLeaderboardScores(entries) {
+  return [...entries].sort(compareLeaderboardEntries);
+}
+
+function compareLeaderboardEntries(first, second) {
+  if (first.score !== second.score) return second.score - first.score;
+  if (first.zapsPerSecond !== second.zapsPerSecond) return second.zapsPerSecond - first.zapsPerSecond;
+
+  const firstCreatedAt = Date.parse(first.createdAt) || 0;
+  const secondCreatedAt = Date.parse(second.createdAt) || 0;
+  if (firstCreatedAt !== secondCreatedAt) return firstCreatedAt - secondCreatedAt;
+
+  return (Number(first.id) || 0) - (Number(second.id) || 0);
+}
+
+function normalizeMockLeaderboardScore(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  return {
+    id: Number(entry.id) || 0,
+    playerName: String(entry.playerName || "Player"),
+    score: Number(entry.score) || 0,
+    zapsPerSecond: Number(entry.zapsPerSecond) || 0,
+    elapsedSeconds: Number(entry.elapsedSeconds) || 0,
+    wrongCount: Number(entry.wrongCount) || 0,
+    createdAt: String(entry.createdAt || new Date().toISOString()),
+  };
+}
+
+function toLeaderboardEntry(entry) {
+  return {
+    playerName: entry.playerName,
+    score: entry.score,
+    zapsPerSecond: entry.zapsPerSecond,
+    elapsedSeconds: entry.elapsedSeconds,
+    wrongCount: entry.wrongCount,
+    createdAt: entry.createdAt,
+  };
+}
+
+function getLeaderboardRequestUrl({ includeContext = false } = {}) {
+  const requestUrl = new URL(leaderboardEndpoint, window.location.href);
+
+  if (!includeContext) {
+    return requestUrl.toString();
+  }
+
+  if (savedScoreId) {
+    requestUrl.searchParams.set("scoreId", String(savedScoreId));
+    return requestUrl.toString();
+  }
+
+  requestUrl.searchParams.set("score", String(score));
+  requestUrl.searchParams.set("zapsPerSecond", String(finalRate));
+  requestUrl.searchParams.set("elapsedSeconds", String(finalElapsedSeconds));
+  requestUrl.searchParams.set("wrongCount", String(wrongCount));
+
+  return requestUrl.toString();
 }
 
 async function getRecaptchaToken() {
@@ -822,6 +1026,81 @@ function renderLeaderboard(entries, list = leaderboardList) {
     item.append(rank, name, scoreValue, rateValue);
     list.append(item);
   });
+}
+
+function resetLeaderboardContext(message = "") {
+  leaderboardContextList.innerHTML = "";
+  leaderboardContextStatus.textContent = message;
+  leaderboardContextTitle.textContent = "Next to beat";
+}
+
+function renderLeaderboardContext(context) {
+  resetLeaderboardContext();
+
+  if (!context || typeof context !== "object") {
+    leaderboardContextStatus.textContent = "Run placement is unavailable.";
+    return;
+  }
+
+  const rank = Number(context.rank) || 0;
+  const totalScores = Number(context.totalScores) || 0;
+  const entries = Array.isArray(context.scores) ? context.scores : [];
+
+  if (!rank || !totalScores || !entries.length) {
+    leaderboardContextStatus.textContent = "Run placement is unavailable.";
+    return;
+  }
+
+  leaderboardContextStatus.textContent = context.mode === "saved"
+    ? `Saved rank: #${rank} of ${totalScores}.`
+    : `Estimated rank: #${rank} of ${totalScores} if saved.`;
+
+  entries.forEach((entry) => {
+    const item = document.createElement("li");
+    const rankValue = document.createElement("span");
+    const name = document.createElement("strong");
+    const scoreValue = document.createElement("span");
+    const rateValue = document.createElement("span");
+
+    rankValue.className = "leaderboard-rank";
+    name.className = "leaderboard-name";
+    scoreValue.className = "leaderboard-score";
+    rateValue.className = "leaderboard-rate";
+
+    if (entry.isCurrent) {
+      item.classList.add("is-current");
+    }
+
+    rankValue.textContent = `#${Number(entry.rank) || "?"}`;
+    name.textContent = entry.isCurrent ? getCurrentRunLabel(context.mode, entry.playerName) : entry.playerName || "Player";
+    scoreValue.textContent = `${Number(entry.score) || 0} zaps`;
+    rateValue.textContent = `${formatRate(Number(entry.zapsPerSecond) || 0)}/sec`;
+
+    item.append(rankValue, name, scoreValue, rateValue);
+    leaderboardContextList.append(item);
+  });
+
+  leaderboardContextTitle.textContent = getNextToBeatMessage(context.nextToBeat);
+}
+
+function getCurrentRunLabel(mode, playerName) {
+  if (mode === "saved" && playerName) {
+    return playerName;
+  }
+
+  return "Your run";
+}
+
+function getNextToBeatMessage(nextToBeat) {
+  if (!nextToBeat || typeof nextToBeat !== "object") {
+    return "No one above this run.";
+  }
+
+  const playerName = nextToBeat.playerName || "Player";
+  const nextScore = Number(nextToBeat.score) || 0;
+  const scoreGap = Math.max(1, nextScore + 1 - score);
+
+  return `Next to beat: ${playerName}, ${scoreGap} more zap${scoreGap === 1 ? "" : "s"}.`;
 }
 
 function getResponseErrorMessage(result, fallbackMessage) {

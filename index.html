@@ -107,7 +107,10 @@
           <li>Correct zaps add points and build your streak.</li>
           <li>Misses reset your streak and cost 10 seconds.</li>
         </ol>
-        <p class="keypad-note">Desktop: use the numpad like the board: 7-8-9 across the top, 4-5-6 in the middle, and 1-2-3 along the bottom.</p>
+        <div class="keypad-note">
+          <p>Desktop: use the numpad like the board: 7-8-9 across the top, 4-5-6 in the middle, and 1-2-3 along the bottom. </p>
+          <p>Press Space to restart the round.</p>
+        </div>
       </section>
     </div>
 
@@ -222,13 +225,23 @@
           <p id="save-score-status" class="save-score-status" role="status"></p>
         </form>
         <button id="play-again-button" class="primary-button" type="button">Play again</button>
+        <button id="refresh-leaderboard" class="ghost-button leaderboard-rankings-refresh" type="button" hidden>Refresh rankings</button>
+        <section class="leaderboard-context-panel" aria-labelledby="leaderboard-context-title">
+          <div class="leaderboard-context-heading">
+            <div>
+              <p class="eyebrow">Around you</p>
+              <h2 id="leaderboard-context-title" class="leaderboard-context-next">Next to beat</h2>
+            </div>
+          </div>
+          <ol id="leaderboard-context-list" class="leaderboard-list leaderboard-context-list" aria-live="polite"></ol>
+          <p id="leaderboard-context-status" class="leaderboard-status" role="status">Loading placement...</p>
+        </section>
         <section class="leaderboard-panel" aria-labelledby="leaderboard-title">
           <div class="leaderboard-heading">
             <div>
               <p class="eyebrow">Leaderboard</p>
               <h2 id="leaderboard-title">Top 5</h2>
             </div>
-            <button id="refresh-leaderboard" class="ghost-button" type="button">Refresh</button>
           </div>
           <ol id="leaderboard-list" class="leaderboard-list" aria-live="polite"></ol>
           <p id="leaderboard-status" class="leaderboard-status" role="status">Loading leaderboard...</p>

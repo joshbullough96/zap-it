@@ -589,6 +589,17 @@ input:focus-visible {
   border-top: 1px solid var(--line);
 }
 
+.leaderboard-context-panel {
+  margin-top: 0.75rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.leaderboard-rankings-refresh {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
 .leaderboard-heading {
   display: flex;
   align-items: center;
@@ -596,15 +607,24 @@ input:focus-visible {
   gap: 0.75rem;
 }
 
+.leaderboard-context-heading {
+  display: block;
+}
+
+.leaderboard-heading h2,
+.leaderboard-context-next {
+  margin: 0.15rem 0 0;
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
 .result-heading {
   display: flex;
   align-items: start;
   justify-content: space-between;
   gap: 1rem;
-}
-
-.leaderboard-heading h2 {
-  font-size: 1.05rem;
 }
 
 .leaderboard-list {
@@ -626,6 +646,11 @@ input:focus-visible {
   gap: 0.45rem;
   padding: 0.4rem 0.5rem;
   font-size: 0.8rem;
+}
+
+.leaderboard-context-list li.is-current {
+  background: var(--timer-bg);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .leaderboard-rank {
@@ -1072,6 +1097,10 @@ input:not([type="radio"]):not([type="checkbox"]):not([type="color"]) {
 }
 
 @media (max-width: 24rem) {
+  .leaderboard-context-next {
+    font-size: 0.95rem;
+  }
+
   .leaderboard-list li {
     grid-template-columns: 2rem minmax(0, 1fr) auto;
   }
