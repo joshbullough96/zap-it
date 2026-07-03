@@ -166,6 +166,20 @@ button {
   scroll-margin-top: 0.5rem;
 }
 
+.site-footer {
+  width: min(100%, 30rem);
+  margin: 0 auto 0.75rem;
+  padding: 0 0.7rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
 .top-bar,
 .target-panel,
 .score-row,
