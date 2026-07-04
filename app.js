@@ -30,9 +30,8 @@ const themes = {
   patriotic: {
     colors: [
       { name: "liberty red", value: "#c82032" },
-      { name: "star white", value: "#f7f9ff" },
+      { name: "star white", value: "#e1e1e1" },
       { name: "union blue", value: "#2246a7" },
-      { name: "sparkler gold", value: "#f0b429" },
     ],
   },
   fall: {
@@ -1325,5 +1324,22 @@ function shuffle(items) {
 }
 
 function titleCase(value) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  const smallWords = new Set(["a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "per", "the", "to", "via", "vs"]);
+
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((word, index) => {
+      const normalizedWord = word.toLowerCase();
+
+      if (index > 0 && smallWords.has(normalizedWord)) {
+        return normalizedWord;
+      }
+
+      return normalizedWord
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join("-");
+    })
+    .join(" ");
 }
