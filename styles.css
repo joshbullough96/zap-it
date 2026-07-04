@@ -56,6 +56,20 @@ body[data-theme="christmas"] {
     linear-gradient(145deg, #fffafa 0%, #edf8f1 52%, #fff6f6 100%);
 }
 
+body[data-theme="patriotic"] {
+  --accent: #2246a7;
+  --accent-strong: #162f74;
+  --danger: #c82032;
+  --good: #1f6fbb;
+  --zap: #ffffff;
+  --zap-deep: #6aa7ff;
+  --timer-bg: #f5f8ff;
+  --body-bg:
+    radial-gradient(circle at top left, rgba(200, 32, 50, 0.22), transparent 24rem),
+    radial-gradient(circle at top right, rgba(34, 70, 167, 0.2), transparent 24rem),
+    linear-gradient(145deg, #fffdf8 0%, #edf4ff 48%, #fff4f5 100%);
+}
+
 body[data-theme="fall"] {
   --accent: #c65f24;
   --accent-strong: #7a3410;
@@ -117,6 +131,20 @@ body[data-mode="dark"][data-theme="christmas"] {
   --body-bg:
     radial-gradient(circle at top left, rgba(197, 43, 47, 0.26), transparent 25rem),
     linear-gradient(145deg, #121b18 0%, #172923 54%, #1f1517 100%);
+}
+
+body[data-mode="dark"][data-theme="patriotic"] {
+  --accent: #7da6ff;
+  --accent-strong: #dce7ff;
+  --danger: #ff6f7d;
+  --good: #78c2ff;
+  --zap: #ffffff;
+  --zap-deep: #89b6ff;
+  --timer-bg: #111f3f;
+  --body-bg:
+    radial-gradient(circle at top left, rgba(255, 91, 107, 0.22), transparent 24rem),
+    radial-gradient(circle at top right, rgba(80, 127, 255, 0.24), transparent 24rem),
+    linear-gradient(145deg, #101626 0%, #14234a 50%, #271219 100%);
 }
 
 body[data-mode="dark"][data-theme="fall"] {

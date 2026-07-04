@@ -5,6 +5,7 @@ const preferenceKeys = {
   oneColor: "zapItOneColor",
 };
 const defaultOneColor = "#0f7b8f";
+const defaultTheme = "patriotic";
 const themes = {
   normal: {
     colors: [
@@ -24,6 +25,14 @@ const themes = {
       { name: "silver", value: "#c8d0d6" },
       { name: "red", value: "#c52b2f" },
       { name: "green", value: "#167a4a" },
+    ],
+  },
+  patriotic: {
+    colors: [
+      { name: "liberty red", value: "#c82032" },
+      { name: "star white", value: "#f7f9ff" },
+      { name: "union blue", value: "#2246a7" },
+      { name: "sparkler gold", value: "#f0b429" },
     ],
   },
   fall: {
@@ -173,7 +182,7 @@ playerNameInput.addEventListener("input", () => {
 function getSavedTheme() {
   const savedTheme = readPreference(preferenceKeys.theme);
   if (savedTheme === "halloween") return "fall";
-  return themes[savedTheme] ? savedTheme : "normal";
+  return themes[savedTheme] ? savedTheme : defaultTheme;
 }
 
 function getSavedDarkMode() {

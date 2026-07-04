@@ -9,7 +9,7 @@ The app is intentionally lightweight: plain HTML, CSS, and JavaScript for the ga
 - Mobile-first 3 by 3 matching game with animated round transitions and lightning feedback.
 - Five shapes: star, circle, square, triangle, and diamond.
 - Live score, streak, timer, and zaps-per-second statistics.
-- Normal, One color, Christmas, Fall, and Summer themes.
+- Normal, One color, Christmas, Fourth of July, Fall, and Summer themes.
 - Custom color selection in One color mode.
 - Light and dark modes for every theme.
 - Theme, dark-mode, and custom-color preferences saved in `localStorage`.
@@ -93,6 +93,7 @@ The Settings dialog includes:
 - **Normal:** blue, green, red, yellow, and orange shapes.
 - **One color:** a user-selected color applied with light and dark gradients.
 - **Christmas:** silver, red, and green.
+- **Fourth of July:** the temporary default, with liberty red, star white, union blue, and sparkler gold.
 - **Fall:** maple, marigold, cranberry, moss, and plum.
 - **Summer:** sun, coral, aqua, lime, and sky.
 - **Dark mode:** a dark surface palette available with every theme.
