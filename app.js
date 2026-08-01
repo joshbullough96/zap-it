@@ -5,7 +5,7 @@ const preferenceKeys = {
   oneColor: "zapItOneColor",
 };
 const defaultOneColor = "#0f7b8f";
-const defaultTheme = "patriotic";
+const defaultTheme = "normal";
 const themes = {
   normal: {
     colors: [

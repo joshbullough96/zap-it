@@ -93,7 +93,7 @@ The Settings dialog includes:
 - **Normal:** blue, green, red, yellow, and orange shapes.
 - **One color:** a user-selected color applied with light and dark gradients.
 - **Christmas:** silver, red, and green.
-- **Fourth of July:** the temporary default, with liberty red, star white, and union blue.
+- **Fourth of July:** liberty red, star white, and union blue.
 - **Fall:** maple, marigold, cranberry, moss, and plum.
 - **Summer:** sun, coral, aqua, lime, and sky.
 - **Dark mode:** a dark surface palette available with every theme.
