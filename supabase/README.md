@@ -13,9 +13,11 @@ supabase link --project-ref YOUR_PROJECT_REF
 
 You can find `YOUR_PROJECT_REF` in the Supabase dashboard URL or under Project Settings.
 
-## 2. Create the table
+## 2. Create the tables
 
-Run `supabase/migrations/20260517000000_create_leaderboard_scores.sql` in the Supabase SQL editor, or apply it with the Supabase CLI.
+Run the migrations in `supabase/migrations/` in order, or apply them with the Supabase CLI.
+
+Classic scores use `leaderboard_scores`. Survival scores use `survival_scores`. The updated Edge Function chooses the table from the incoming `mode` value and defaults to Classic when no mode is provided.
 
 ## 3. Add function secrets
 

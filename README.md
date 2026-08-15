@@ -1,12 +1,13 @@
 # Zap It
 
-Zap It is a fast browser matching game. Players race against a 60-second timer to find the one grid item that matches the target shape and color. Correct zaps increase the score and streak; misses reset the streak and remove 10 seconds. At the end of a run, players can review their score, speed, misses, estimated placement, and the global Top 5.
+Zap It is a fast browser matching game. In Classic mode, players race against a 60-second timer to find the one grid item that matches the target shape and color. Correct zaps increase the score and streak; misses reset the streak and remove 10 seconds. Survival mode counts seconds upward and ends on the first wrong shape. At the end of a run, players can review their score, speed, misses, estimated placement, and the mode-specific global Top 5.
 
 The app is intentionally lightweight: plain HTML, CSS, and JavaScript for the game, plus a Supabase Edge Function and database migrations for the optional online leaderboard. It has no build step or frontend framework.
 
 ## Features
 
 - Mobile-first 3 by 3 matching game with animated round transitions and lightning feedback.
+- Classic and Survival modes, with Classic selected by default on every page load.
 - Five shapes: star, circle, square, triangle, and diamond.
 - Live score, streak, timer, and zaps-per-second statistics.
 - Normal, One color, Christmas, Fourth of July, Fall, and Summer themes.
@@ -15,7 +16,7 @@ The app is intentionally lightweight: plain HTML, CSS, and JavaScript for the ga
 - Theme, dark-mode, and custom-color preferences saved in `localStorage`.
 - Touch, mouse, numpad, Space, and Escape controls.
 - In-app instructions, settings, standalone leaderboard, and game-over dialogs.
-- Public Top 5 leaderboard plus an "Around you" placement preview.
+- Separate Classic and Survival Top 5 leaderboards plus an "Around you" placement preview.
 - Local mock leaderboard for development without a Supabase deployment.
 - Client- and server-side player-name validation, profanity filtering, and reCAPTCHA Enterprise verification.
 - Responsive layout and screen-reader-friendly labels, live regions, focus handling, and semantic controls.
@@ -52,14 +53,14 @@ This app does not require a build step.
 
 Opening `index.html` directly may work for the basic game, but a local server is closer to deployment behavior and avoids browser restrictions around local files.
 
-When the app runs on `localhost`, `127.0.0.1`, or directly from a file, the included `app-config.js` enables a mock leaderboard with seed scores. This lets the Top 5, placement preview, score saving, and saved-rank state be tested without writing to Supabase. Mock saves exist only in memory and reset when the page reloads.
+When the app runs on `localhost`, `127.0.0.1`, or directly from a file, the included `app-config.js` enables separate mock Classic and Survival leaderboards with seed scores. This lets the Top 5, placement preview, score saving, and saved-rank state be tested without writing to Supabase. Mock saves exist only in memory and reset when the page reloads.
 
 ## How to Play
 
-1. Press **Start** to begin a 60-second round.
+1. Choose **Classic** for a 60-second round or **Survival** for an untimed run.
 2. Match the target item shown above the board.
 3. Tap, click, or use the numpad to zap the one matching grid item.
-4. Keep matching items until the timer reaches zero.
+4. Keep matching items until the Classic timer reaches zero or the first Survival miss ends the run.
 5. Review the final score, speed, misses, placement, and leaderboard.
 
 ### Controls
@@ -81,8 +82,9 @@ Keyboard shortcuts do not activate while focus is in a text field or while a con
 - In the multicolor themes, a match requires both the shape and color to match.
 - In One color mode, only the shape distinguishes the target.
 - A correct zap adds 1 point, increases the streak, plays the lightning effect, and flips to the next board.
-- A miss resets the streak, adds to the miss count, and subtracts 10 seconds.
-- A round ends when the timer reaches zero, including when a miss reduces the remaining time to zero.
+- In Classic mode, a miss resets the streak, adds to the miss count, and subtracts 10 seconds.
+- A Classic round ends when the timer reaches zero, including when a miss reduces the remaining time to zero.
+- In Survival mode, seconds count up instead of down. The first miss ends the run, and the score is the number of correct zaps before that miss.
 - Zaps per second is the score divided by elapsed play time and is displayed to two decimal places.
 - Pressing Restart or Space during a round starts a fresh run with score, streak, misses, and time reset.
 
@@ -107,7 +109,7 @@ The game works without Supabase. Outside local mock mode, saving scores and load
 Follow [supabase/README.md](supabase/README.md) to:
 
 1. Link the project to Supabase.
-2. Apply the leaderboard migration.
+2. Apply the Classic and Survival leaderboard migrations.
 3. Set Supabase function secrets.
 4. Deploy the `leaderboard` function.
 5. Set `leaderboardEndpoint` and the public reCAPTCHA site key in `app-config.js`.
@@ -121,8 +123,10 @@ Do not put the Google Cloud reCAPTCHA API key in frontend files. The browser sho
 - The game-over screen shows the Top 5 and an "Around you" preview for the current unsaved run.
 - After a successful save, the placement refreshes using the exact stored score ID.
 - Leaderboard entries include rank, nickname, score, and zaps per second.
+- Classic scores are stored in `leaderboard_scores`; Survival scores are stored in `survival_scores`.
+- The frontend sends `mode=classic` or `mode=survival`, and the Edge Function chooses the matching table. If no mode is sent, the Edge Function defaults to Classic for backward compatibility.
 - Rankings sort by score descending, then zaps per second descending. Stored-score ties are resolved by creation time and database ID.
-- The database stores nickname, score, zaps per second, elapsed seconds, misses, and creation time.
+- Both database tables store nickname, score, zaps per second, elapsed seconds, misses, and creation time.
 - Nicknames must be 2 to 16 characters and may contain letters, numbers, spaces, hyphens, and underscores.
 - The browser performs immediate nickname checks. The Edge Function repeats validation, checks profanity, verifies reCAPTCHA Enterprise, and validates score ranges before writing.
 - The public score form warns players not to enter identifying information.
@@ -196,8 +200,11 @@ Use this quick pass before considering a change done:
 
 - The page loads without console errors.
 - The Start button begins a new 60-second game.
+- Classic is selected on a fresh page load.
+- Switching to Survival shows seconds counting up during play.
 - The target item changes after a correct tap.
 - A wrong tap subtracts 10 seconds and shows feedback.
+- In Survival, the first wrong tap ends the run and the saved score is the correct-zap count before the miss.
 - The score, streak, timer, and zaps per second update correctly.
 - Numpad controls map to the matching grid positions.
 - Space starts or restarts from the main game view without triggering while typing or while a dialog is open.
@@ -208,7 +215,7 @@ Use this quick pass before considering a change done:
 - Every theme remains readable in light and dark mode.
 - Game over shows final score, speed, misses, placement preview, and Top 5.
 - Nickname validation rejects too-short, too-long, unsupported, and blocked values.
-- Local mock score saving updates placement without sending a network write.
+- Local mock score saving updates placement without sending a network write, and Classic and Survival mock scores stay separate.
 - With no `leaderboardEndpoint`, the game still plays and explains that leaderboard setup is missing.
 - With `leaderboardEndpoint` and reCAPTCHA configured, the leaderboard loads and valid scores can be saved.
 - At widths below 24rem, leaderboard rate details hide and the score form stacks.

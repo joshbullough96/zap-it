@@ -5,7 +5,11 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
-const tableName = "leaderboard_scores";
+const defaultMode = "classic";
+const tableNames = {
+  classic: "leaderboard_scores",
+  survival: "survival_scores",
+} as const;
 const maxPlayerNameLength = 16;
 const playerNamePattern = /^[A-Za-z0-9 _-]+$/;
 const fallbackBlockedWords = ["damn", "hell"];
@@ -41,9 +45,10 @@ Deno.serve(async (request) => {
 
 async function getLeaderboard(request: Request) {
   const requestUrl = new URL(request.url);
-  const rows = await fetchLeaderboardRows(undefined, 5, 0);
+  const mode = normalizeGameMode(requestUrl.searchParams.get("mode"));
+  const rows = await fetchLeaderboardRows(mode, undefined, 5, 0);
   const result: Record<string, unknown> = { scores: rows.map(mapScoreRow) };
-  const context = await getLeaderboardContext(requestUrl);
+  const context = await getLeaderboardContext(requestUrl, mode);
 
   if (context) {
     result.context = context;
@@ -60,10 +65,11 @@ async function saveScore(payload: unknown, request: Request) {
   const body = payload as Record<string, unknown>;
   await verifyRecaptcha(body.recaptchaToken, request);
 
+  const mode = normalizeGameMode(body.mode);
   const playerName = normalizePlayerName(body.playerName);
-  const score = normalizeInteger(body.score, "score", 0, 1000);
+  const score = normalizeInteger(body.score, "score", 0, getMaxScore(mode));
   const zapsPerSecond = normalizeNumber(body.zapsPerSecond, "zaps per second", 0, 100);
-  const elapsedSeconds = normalizeNumber(body.elapsedSeconds, "elapsed seconds", 0.01, 600);
+  const elapsedSeconds = normalizeNumber(body.elapsedSeconds, "elapsed seconds", 0.01, getMaxElapsedSeconds(mode));
   const wrongCount = body.wrongCount === undefined ? 0 : normalizeInteger(body.wrongCount, "miss count", 0, 1000);
   const validationMessage = validatePlayerName(playerName);
 
@@ -77,7 +83,7 @@ async function saveScore(payload: unknown, request: Request) {
     throw new Error("Please choose a different name.");
   }
 
-  const response = await fetch(`${getRestUrl()}?select=id`, {
+  const response = await fetch(`${getRestUrl(mode)}?select=id`, {
     method: "POST",
     headers: {
       ...getSupabaseHeaders(),
@@ -107,11 +113,11 @@ async function saveScore(payload: unknown, request: Request) {
   return scoreId;
 }
 
-async function getLeaderboardContext(requestUrl: URL) {
+async function getLeaderboardContext(requestUrl: URL, mode: GameMode) {
   const scoreId = requestUrl.searchParams.get("scoreId");
 
   if (scoreId) {
-    return getSavedScoreContext(normalizeScoreId(scoreId));
+    return getSavedScoreContext(mode, normalizeScoreId(scoreId));
   }
 
   if (!requestUrl.searchParams.has("score")) {
@@ -120,40 +126,40 @@ async function getLeaderboardContext(requestUrl: URL) {
 
   return getPreviewScoreContext({
     playerName: "Your run",
-    score: normalizeIntegerParam(requestUrl.searchParams.get("score"), "score", 0, 1000),
+    score: normalizeIntegerParam(requestUrl.searchParams.get("score"), "score", 0, getMaxScore(mode)),
     zapsPerSecond: normalizeNumberParam(requestUrl.searchParams.get("zapsPerSecond"), "zaps per second", 0, 100),
-    elapsedSeconds: normalizeNumberParam(requestUrl.searchParams.get("elapsedSeconds"), "elapsed seconds", 0.01, 600),
+    elapsedSeconds: normalizeNumberParam(requestUrl.searchParams.get("elapsedSeconds"), "elapsed seconds", 0.01, getMaxElapsedSeconds(mode)),
     wrongCount: normalizeIntegerParam(requestUrl.searchParams.get("wrongCount") || "0", "miss count", 0, 1000),
-  });
+  }, mode);
 }
 
-async function getSavedScoreContext(scoreId: number) {
+async function getSavedScoreContext(mode: GameMode, scoreId: number) {
   if (!scoreId) {
     throw new Error("Invalid score placement request.");
   }
 
-  const rows = await fetchLeaderboardRows({ id: `eq.${scoreId}` }, 1, 0);
+  const rows = await fetchLeaderboardRows(mode, { id: `eq.${scoreId}` }, 1, 0);
   const target = rows[0];
 
   if (!target) {
     throw new Error("Saved score could not be found.");
   }
 
-  return buildContext("saved", mapTargetRow(target));
+  return buildContext(mode, "saved", mapTargetRow(target));
 }
 
-async function getPreviewScoreContext(target: LeaderboardTarget) {
-  return buildContext("preview", target);
+async function getPreviewScoreContext(target: LeaderboardTarget, mode: GameMode) {
+  return buildContext(mode, "preview", target);
 }
 
-async function buildContext(mode: "preview" | "saved", target: LeaderboardTarget) {
-  const totalExistingScores = await fetchLeaderboardCount();
+async function buildContext(gameMode: GameMode, mode: "preview" | "saved", target: LeaderboardTarget) {
+  const totalExistingScores = await fetchLeaderboardCount(gameMode);
   const higherRankFilter = buildHigherRankFilter(target, mode);
   const lowerRankFilter = buildLowerRankFilter(target, mode);
-  const higherCount = await fetchLeaderboardCount(higherRankFilter);
+  const higherCount = await fetchLeaderboardCount(gameMode, higherRankFilter);
   const aboveOffset = Math.max(0, higherCount - 2);
-  const aboveRows = await fetchLeaderboardRows(higherRankFilter, 2, aboveOffset);
-  const belowRows = await fetchLeaderboardRows(lowerRankFilter, 2, 0);
+  const aboveRows = await fetchLeaderboardRows(gameMode, higherRankFilter, 2, aboveOffset);
+  const belowRows = await fetchLeaderboardRows(gameMode, lowerRankFilter, 2, 0);
   const rank = higherCount + 1;
   const totalScores = mode === "preview" ? totalExistingScores + 1 : totalExistingScores;
   const nearbyScores = [
@@ -181,14 +187,14 @@ async function buildContext(mode: "preview" | "saved", target: LeaderboardTarget
   };
 }
 
-async function fetchLeaderboardRows(filters: Record<string, string> = {}, limit = 5, offset = 0) {
+async function fetchLeaderboardRows(mode: GameMode, filters: Record<string, string> = {}, limit = 5, offset = 0) {
   const endpoint = makeRestUrl({
     select: "id,player_name,score,zaps_per_second,elapsed_seconds,wrong_count,created_at",
     order: "score.desc,zaps_per_second.desc,created_at.asc,id.asc",
     limit: String(limit),
     offset: String(offset),
     ...filters,
-  });
+  }, mode);
   const response = await fetch(endpoint, {
     method: "GET",
     headers: getSupabaseHeaders(),
@@ -201,11 +207,11 @@ async function fetchLeaderboardRows(filters: Record<string, string> = {}, limit 
   return await response.json() as LeaderboardRow[];
 }
 
-async function fetchLeaderboardCount(filters: Record<string, string> = {}) {
+async function fetchLeaderboardCount(mode: GameMode, filters: Record<string, string> = {}) {
   const endpoint = makeRestUrl({
     select: "id",
     ...filters,
-  });
+  }, mode);
   const response = await fetch(endpoint, {
     method: "HEAD",
     headers: {
@@ -259,8 +265,8 @@ function buildLowerRankFilter(target: LeaderboardTarget, mode: "preview" | "save
   return { or: `(${conditions.join(",")})` };
 }
 
-function makeRestUrl(params: Record<string, string>) {
-  const endpoint = new URL(getRestUrl());
+function makeRestUrl(params: Record<string, string>, mode: GameMode) {
+  const endpoint = new URL(getRestUrl(mode));
 
   Object.entries(params).forEach(([key, value]) => {
     endpoint.searchParams.set(key, value);
@@ -424,6 +430,18 @@ function normalizeNumberParam(value: string | null, label: string, minimum: numb
   return normalizeNumber(Number(value), label, minimum, maximum);
 }
 
+function normalizeGameMode(value: unknown): GameMode {
+  if (value === undefined || value === null || value === "") {
+    return defaultMode;
+  }
+
+  if (value === "classic" || value === "survival") {
+    return value;
+  }
+
+  throw new Error("Invalid game mode.");
+}
+
 function normalizeScoreId(value: unknown) {
   const scoreId = typeof value === "number" ? value : Number(value);
 
@@ -434,10 +452,18 @@ function normalizeScoreId(value: unknown) {
   return scoreId;
 }
 
-function getRestUrl() {
+function getMaxScore(mode: GameMode) {
+  return mode === "survival" ? 10000 : 1000;
+}
+
+function getMaxElapsedSeconds(mode: GameMode) {
+  return mode === "survival" ? 36000 : 600;
+}
+
+function getRestUrl(mode: GameMode) {
   const supabaseUrl = getRequiredEnv("ZAP_SUPABASE_URL");
 
-  return `${supabaseUrl.replace(/\/$/, "")}/rest/v1/${tableName}`;
+  return `${supabaseUrl.replace(/\/$/, "")}/rest/v1/${tableNames[mode]}`;
 }
 
 function getSupabaseHeaders() {
@@ -515,3 +541,5 @@ type LeaderboardTarget = {
   wrongCount: number;
   createdAt?: string;
 };
+
+type GameMode = keyof typeof tableNames;

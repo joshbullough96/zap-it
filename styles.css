@@ -209,6 +209,7 @@ button {
 }
 
 .top-bar,
+.mode-selector,
 .target-panel,
 .score-row,
 .controls {
@@ -239,6 +240,68 @@ button {
   display: flex;
   align-items: center;
   gap: 0.65rem;
+}
+
+.mode-selector {
+  padding: 0.55rem 0.65rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mode-help {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.18;
+}
+
+.mode-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(4.25rem, 1fr));
+  gap: 0.3rem;
+}
+
+.mode-options label {
+  position: relative;
+  cursor: pointer;
+}
+
+.mode-options input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mode-options span {
+  min-height: 2.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  display: grid;
+  place-items: center;
+  background: var(--field);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.mode-options input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--button-ink, #ffffff);
+  box-shadow: var(--soft-shadow);
+}
+
+.mode-options input:focus-visible + span {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.mode-options input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .app-logo {
@@ -417,7 +480,7 @@ h2 {
 }
 
 .grid {
-  width: min(100%, 25rem);
+  width: 100%;
   aspect-ratio: 1;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1133,12 +1196,13 @@ input:not([type="radio"]):not([type="checkbox"]):not([type="color"]) {
     border-radius: 0.75rem;
   }
 
-  .grid {
-    width: min(100%, 27rem);
-  }
 }
 
 @media (max-width: 24rem) {
+  .mode-selector {
+    grid-template-columns: 1fr;
+  }
+
   .leaderboard-context-next {
     font-size: 0.95rem;
   }

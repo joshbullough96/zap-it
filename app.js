@@ -56,6 +56,19 @@ const themes = {
 
 const gameLength = 60;
 const wrongPenalty = 10;
+const defaultGameMode = "classic";
+const gameModes = {
+  classic: {
+    label: "Classic",
+    help: "Race the clock! Misses cost 10 seconds.",
+    startMessage: "Zap the one item that matches the target.",
+  },
+  survival: {
+    label: "Survival",
+    help: "Seconds count up. Keep going until the first miss.",
+    startMessage: "Keep zapping matches. One wrong shape ends the run.",
+  },
+};
 const lightningZapDuration = 140;
 const flipSwapDelay = 240;
 const flipDuration = 520;
@@ -69,6 +82,9 @@ const recaptchaAction = "save_score";
 const useMockLeaderboard = Boolean(config.useMockLeaderboard && Array.isArray(config.mockLeaderboardScores));
 const leaderboardAvailable = Boolean(leaderboardEndpoint || useMockLeaderboard);
 let mockLeaderboardScores = useMockLeaderboard ? config.mockLeaderboardScores.map(normalizeMockLeaderboardScore).filter(Boolean) : [];
+let mockSurvivalLeaderboardScores = useMockLeaderboard && Array.isArray(config.mockSurvivalLeaderboardScores)
+  ? config.mockSurvivalLeaderboardScores.map(normalizeMockLeaderboardScore).filter(Boolean)
+  : [];
 const gridKeyIndexes = {
   7: 0,
   8: 1,
@@ -92,9 +108,13 @@ const streakEl = document.querySelector("#streak");
 const zapRateEl = document.querySelector("#zap-rate");
 const timeLeftEl = document.querySelector("#time-left");
 const timerEl = timeLeftEl.closest(".timer");
+const timerUnitEl = document.querySelector("#timer-unit");
 const messageEl = document.querySelector("#message");
 const startButton = document.querySelector("#start-button");
+const modeInputs = document.querySelectorAll("input[name='game-mode']");
+const gameModeHelp = document.querySelector("#game-mode-help");
 const gameOver = document.querySelector("#game-over");
+const resultModeLabel = document.querySelector("#result-mode-label");
 const finalScore = document.querySelector("#final-score");
 const finalZapRate = document.querySelector("#final-zap-rate");
 const finalWrongCount = document.querySelector("#final-wrong-count");
@@ -114,7 +134,9 @@ const leaderboardMenu = document.querySelector("#leaderboard-menu");
 const closeLeaderboardButton = document.querySelector("#close-leaderboard-button");
 const standaloneLeaderboardList = document.querySelector("#standalone-leaderboard-list");
 const standaloneLeaderboardStatus = document.querySelector("#standalone-leaderboard-status");
+const standaloneLeaderboardTitle = document.querySelector("#standalone-leaderboard-title");
 const standaloneRefreshLeaderboardButton = document.querySelector("#standalone-refresh-leaderboard");
+const leaderboardTitle = document.querySelector("#leaderboard-title");
 const scoreForm = document.querySelector("#score-form");
 const playerNameInput = document.querySelector("#player-name");
 const saveScoreButton = document.querySelector("#save-score-button");
@@ -136,6 +158,8 @@ let running = false;
 let boardLocked = false;
 let scoreSaved = false;
 let savedScoreId = null;
+let activeGameMode = defaultGameMode;
+let currentRunMode = defaultGameMode;
 let timerId = null;
 let matchStartedAt = null;
 let matchEndedAt = null;
@@ -151,6 +175,7 @@ let recaptchaScriptPromise = null;
 
 applyPreferences();
 renderEmptyGrid();
+syncGameModeUi();
 updateStats();
 
 startButton.addEventListener("click", startGame);
@@ -165,6 +190,7 @@ closeLeaderboardButton.addEventListener("click", closeLeaderboard);
 leaderboardMenu.addEventListener("click", handleLeaderboardBackdropClick);
 standaloneRefreshLeaderboardButton.addEventListener("click", () => loadLeaderboard({ standaloneOnly: true }));
 scoreForm.addEventListener("submit", handleScoreSubmit);
+modeInputs.forEach((input) => input.addEventListener("change", handleGameModeChange));
 settingsButton.addEventListener("click", openSettings);
 closeSettingsButton.addEventListener("click", closeSettings);
 settingsMenu.addEventListener("click", handleSettingsBackdropClick);
@@ -411,6 +437,65 @@ function handleOneColorChange(event) {
   }
 }
 
+function handleGameModeChange(event) {
+  const nextMode = event.target.value;
+
+  if (running || !gameModes[nextMode]) {
+    syncGameModeUi();
+    return;
+  }
+
+  activeGameMode = nextMode;
+  currentRunMode = nextMode;
+  savedScoreId = null;
+  scoreSaved = false;
+  syncGameModeUi();
+  resetLeaderboardContext();
+
+  if (!leaderboardMenu.hidden) {
+    loadLeaderboard({ standaloneOnly: true });
+  }
+}
+
+function syncGameModeUi() {
+  const mode = getGameModeConfig(activeGameMode);
+
+  document.body.dataset.gameMode = activeGameMode;
+  gameModeHelp.textContent = mode.help;
+  timerEl.hidden = false;
+  timerUnitEl.textContent = "sec";
+  targetHelp.textContent = "Press start to begin";
+  messageEl.textContent = activeGameMode === "survival"
+    ? "Tap Start, then keep matching until your first miss."
+    : "Tap Start, then find and zap the matching shape.";
+  updateLeaderboardTitles(activeGameMode);
+
+  modeInputs.forEach((input) => {
+    input.checked = input.value === activeGameMode;
+    input.disabled = running;
+  });
+}
+
+function updateLeaderboardTitles(modeName) {
+  const mode = getGameModeConfig(modeName);
+  standaloneLeaderboardTitle.textContent = `${mode.label} Top 5`;
+  leaderboardTitle.textContent = `${mode.label} Top 5`;
+}
+
+function getGameModeConfig(modeName = activeGameMode) {
+  return gameModes[modeName] || gameModes[defaultGameMode];
+}
+
+function isSurvivalMode(modeName = currentRunMode) {
+  return modeName === "survival";
+}
+
+function setModeInputsDisabled(disabled) {
+  modeInputs.forEach((input) => {
+    input.disabled = disabled;
+  });
+}
+
 function refreshCurrentRound() {
   if (!running) return;
 
@@ -427,6 +512,7 @@ function startGame() {
   streak = 0;
   wrongCount = 0;
   timeLeft = gameLength;
+  currentRunMode = activeGameMode;
   running = true;
   boardLocked = false;
   scoreSaved = false;
@@ -443,10 +529,12 @@ function startGame() {
   scoreForm.reset();
   saveScoreStatus.textContent = "";
   saveScoreButton.disabled = false;
+  setModeInputsDisabled(true);
   startButton.textContent = "Restart";
   targetPanel.classList.remove("is-waiting");
   targetHelp.hidden = true;
-  messageEl.textContent = "Zap the one item that matches the target.";
+  timerEl.hidden = isSurvivalMode();
+  messageEl.textContent = getGameModeConfig(currentRunMode).startMessage;
   updateStats();
   nextRound();
   clearInterval(timerId);
@@ -454,6 +542,11 @@ function startGame() {
 }
 
 function tick() {
+  if (isSurvivalMode()) {
+    updateStats();
+    return;
+  }
+
   timeLeft = Math.max(0, timeLeft - 1);
   updateStats();
 
@@ -477,7 +570,9 @@ function endGame() {
   finalScore.textContent = score;
   finalZapRate.textContent = formatRate(finalRate);
   finalWrongCount.textContent = wrongCount;
+  resultModeLabel.textContent = getGameModeConfig(currentRunMode).label;
   resetLeaderboardContext("Loading placement...");
+  setModeInputsDisabled(false);
   saveScoreButton.disabled = !leaderboardAvailable;
   saveScoreStatus.textContent = leaderboardAvailable
     ? ""
@@ -485,7 +580,10 @@ function endGame() {
   gameOver.hidden = false;
   targetPanel.classList.add("is-waiting");
   targetHelp.hidden = false;
-  messageEl.textContent = `Time is up. Final score: ${score}.`;
+  timerEl.hidden = false;
+  messageEl.textContent = isSurvivalMode()
+    ? `Wrong shape. Survival score: ${score}.`
+    : `Time is up. Final score: ${score}.`;
   updateStats();
   loadLeaderboard({ includeContext: true });
 
@@ -563,11 +661,19 @@ function handleCellClick(event) {
   if (!isMatch) {
     streak = 0;
     wrongCount += 1;
+    updateStats();
+    button.classList.remove("wrong");
+    requestAnimationFrame(() => button.classList.add("wrong"));
+
+    if (isSurvivalMode()) {
+      messageEl.textContent = "Wrong item. Survival run over.";
+      endGame();
+      return;
+    }
+
     timeLeft = Math.max(0, timeLeft - wrongPenalty);
     updateStats();
     flashPenalty();
-    button.classList.remove("wrong");
-    requestAnimationFrame(() => button.classList.add("wrong"));
     messageEl.textContent = `Wrong item. ${wrongPenalty} seconds lost.`;
 
     if (timeLeft <= 0) {
@@ -691,9 +797,10 @@ async function handleScoreSubmit(event) {
   saveScoreStatus.textContent = "Saving score...";
 
   try {
+    const gameMode = currentRunMode;
     const result = useMockLeaderboard
-      ? saveMockScore({ playerName, score, zapsPerSecond: finalRate, elapsedSeconds: finalElapsedSeconds, wrongCount })
-      : await saveRemoteScore({ playerName, score, zapsPerSecond: finalRate, elapsedSeconds: finalElapsedSeconds, wrongCount });
+      ? saveMockScore({ gameMode, playerName, score, zapsPerSecond: finalRate, elapsedSeconds: finalElapsedSeconds, wrongCount })
+      : await saveRemoteScore({ gameMode, playerName, score, zapsPerSecond: finalRate, elapsedSeconds: finalElapsedSeconds, wrongCount });
 
     scoreSaved = true;
     savedScoreId = result.scoreId || null;
@@ -706,7 +813,7 @@ async function handleScoreSubmit(event) {
   }
 }
 
-async function saveRemoteScore({ playerName, score, zapsPerSecond, elapsedSeconds, wrongCount }) {
+async function saveRemoteScore({ gameMode, playerName, score, zapsPerSecond, elapsedSeconds, wrongCount }) {
   const recaptchaToken = await getRecaptchaToken();
   const response = await fetch(leaderboardEndpoint, {
     method: "POST",
@@ -715,6 +822,7 @@ async function saveRemoteScore({ playerName, score, zapsPerSecond, elapsedSecond
       Accept: "application/json",
     },
     body: JSON.stringify({
+      mode: gameMode,
       playerName,
       score,
       zapsPerSecond,
@@ -732,8 +840,9 @@ async function saveRemoteScore({ playerName, score, zapsPerSecond, elapsedSecond
   return result;
 }
 
-function saveMockScore({ playerName, score, zapsPerSecond, elapsedSeconds, wrongCount }) {
-  const nextId = mockLeaderboardScores.reduce((highestId, entry) => Math.max(highestId, Number(entry.id) || 0), 0) + 1;
+function saveMockScore({ gameMode, playerName, score, zapsPerSecond, elapsedSeconds, wrongCount }) {
+  const scores = getMockLeaderboardScores(gameMode);
+  const nextId = scores.reduce((highestId, entry) => Math.max(highestId, Number(entry.id) || 0), 0) + 1;
   const savedScore = {
     id: nextId,
     playerName,
@@ -744,13 +853,14 @@ function saveMockScore({ playerName, score, zapsPerSecond, elapsedSeconds, wrong
     createdAt: new Date().toISOString(),
   };
 
-  mockLeaderboardScores.push(savedScore);
+  scores.push(savedScore);
 
   return { ok: true, scoreId: nextId };
 }
 
 async function loadLeaderboard(options = {}) {
   const targets = getLeaderboardTargets(options);
+  updateLeaderboardTitles(getLeaderboardMode(options));
 
   targets.forEach(({ list }) => {
     list.innerHTML = "";
@@ -806,7 +916,8 @@ async function fetchRemoteLeaderboard(options) {
 }
 
 function getMockLeaderboardResult({ includeContext = false } = {}) {
-  const sortedScores = getSortedLeaderboardScores(mockLeaderboardScores);
+  const gameMode = getLeaderboardMode({ includeContext });
+  const sortedScores = getSortedLeaderboardScores(getMockLeaderboardScores(gameMode));
   const result = { scores: sortedScores.slice(0, 5).map(toLeaderboardEntry) };
 
   if (includeContext) {
@@ -816,6 +927,10 @@ function getMockLeaderboardResult({ includeContext = false } = {}) {
   }
 
   return result;
+}
+
+function getMockLeaderboardScores(gameMode = activeGameMode) {
+  return gameMode === "survival" ? mockSurvivalLeaderboardScores : mockLeaderboardScores;
 }
 
 function getSavedMockContext(sortedScores, scoreId) {
@@ -922,6 +1037,9 @@ function toLeaderboardEntry(entry) {
 
 function getLeaderboardRequestUrl({ includeContext = false } = {}) {
   const requestUrl = new URL(leaderboardEndpoint, window.location.href);
+  const gameMode = getLeaderboardMode({ includeContext });
+
+  requestUrl.searchParams.set("mode", gameMode);
 
   if (!includeContext) {
     return requestUrl.toString();
@@ -938,6 +1056,10 @@ function getLeaderboardRequestUrl({ includeContext = false } = {}) {
   requestUrl.searchParams.set("wrongCount", String(wrongCount));
 
   return requestUrl.toString();
+}
+
+function getLeaderboardMode({ includeContext = false } = {}) {
+  return includeContext ? currentRunMode : activeGameMode;
 }
 
 async function getRecaptchaToken() {
@@ -1151,8 +1273,12 @@ function validatePlayerName(playerName) {
 function updateStats() {
   scoreEl.textContent = score;
   streakEl.textContent = streak;
-  timeLeftEl.textContent = timeLeft;
+  timeLeftEl.textContent = isSurvivalMode(getDisplayedStatsMode()) ? Math.floor(getElapsedSeconds()) : timeLeft;
   zapRateEl.textContent = formatRate(calculateZapRate(score, getElapsedSeconds()));
+}
+
+function getDisplayedStatsMode() {
+  return running ? currentRunMode : activeGameMode;
 }
 
 function getElapsedSeconds() {

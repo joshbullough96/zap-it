@@ -51,6 +51,23 @@
         </div>
       </section>
 
+      <section class="mode-selector" aria-labelledby="mode-selector-title">
+        <div>
+          <p id="mode-selector-title" class="eyebrow">Mode</p>
+          <p id="game-mode-help" class="mode-help">Race the clock! Misses cost 10 seconds.</p>
+        </div>
+        <div class="mode-options" role="radiogroup" aria-labelledby="mode-selector-title">
+          <label>
+            <input type="radio" name="game-mode" value="classic" checked>
+            <span>Classic</span>
+          </label>
+          <label>
+            <input type="radio" name="game-mode" value="survival">
+            <span>Survival</span>
+          </label>
+        </div>
+      </section>
+
       <div id="game-area" class="game-area">
         <section id="target-panel" class="target-panel is-waiting" aria-label="Target item">
           <div class="target-copy">
@@ -60,7 +77,7 @@
           <div id="target-shape" class="target-shape" aria-hidden="true"></div>
           <div class="timer" aria-live="polite">
             <span id="time-left">60</span>
-            <span>sec</span>
+            <span id="timer-unit">sec</span>
           </div>
         </section>
 
@@ -104,11 +121,11 @@
           <button id="close-instructions-button" class="icon-button" type="button" aria-label="Close instructions" title="Close instructions">X</button>
         </div>
         <ol class="instructions-list">
-          <li>Press Start to begin a 60-second round.</li>
+          <li>Choose Classic for a 60-second round or Survival for a run that ends when you miss.</li>
           <li>Match the target item shown at the top.</li>
           <li>Zap the matching item by tapping or clicking it.</li>
           <li>Correct zaps add points and build your streak.</li>
-          <li>Misses reset your streak and cost 10 seconds.</li>
+          <li>In Classic, misses cost 10 seconds. In Survival, a miss ends the run.</li>
         </ol>
         <div class="keypad-note">
           <p>Desktop: use the numpad like the board: 7-8-9 across the top, 4-5-6 in the middle, and 1-2-3 along the bottom. </p>
@@ -214,7 +231,7 @@
       <section class="result-panel" role="dialog" aria-modal="true" aria-labelledby="result-title">
         <div class="result-heading">
           <div>
-            <p class="eyebrow">Time</p>
+            <p id="result-mode-label" class="eyebrow">Classic</p>
             <h2 id="result-title">Game over</h2>
           </div>
           <button id="close-game-over-button" class="icon-button" type="button" aria-label="Close results" title="Close results">X</button>
