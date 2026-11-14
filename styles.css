@@ -860,6 +860,10 @@ input:focus-visible {
   gap: 1rem;
 }
 
+#music-status:empty {
+  display: none;
+}
+
 .settings-form fieldset {
   margin: 0;
   padding: 0;
@@ -874,6 +878,10 @@ input:focus-visible {
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.settings-form .sound-settings {
+  gap: 1rem;
 }
 
 .theme-option,
@@ -916,6 +924,84 @@ input:focus-visible {
 
 .toggle-row {
   justify-content: space-between;
+}
+
+.music-label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.music-label i {
+  width: 1.25rem;
+  text-align: center;
+}
+
+.music-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 4rem;
+  height: 2rem;
+}
+
+.music-switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.music-switch-track {
+  display: block;
+  height: 100%;
+  border-radius: 2rem;
+  background: #596673;
+  color: #fff;
+  pointer-events: none;
+}
+
+.music-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 0.25rem;
+  left: 0.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.music-switch-state {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+}
+
+.music-switch input:checked + .music-switch-track {
+  background: #167a4a;
+}
+
+.music-switch input:checked + .music-switch-track::after {
+  left: 2.25rem;
+}
+
+.music-switch input:checked + .music-switch-track .music-switch-state {
+  left: 0.5rem;
+  right: auto;
+}
+
+.music-switch input:focus-visible + .music-switch-track {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.music-switch input:disabled + .music-switch-track {
+  opacity: 0.5;
 }
 
 .result-panel {

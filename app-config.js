@@ -1,4 +1,14 @@
 window.ZAP_IT_CONFIG = {
+  // Add local MP3 paths or public HTTPS audio URLs in playback order.
+  musicTracks: {
+    classic: ["assets/audio/Zap It (Synthwave Guitar Take).mp3"],
+    survival: [
+      "assets/audio/Neon Rain.mp3",
+      "assets/audio/Cityscape.mp3",
+      "assets/audio/Hyperscape.mp3",
+      "assets/audio/Zap It (Synthwave Guitar Take).mp3",
+    ],
+  },
   leaderboardEndpoint: "https://enifgbgdaburhzvpbhme.supabase.co/functions/v1/leaderboard",
   recaptchaSiteKey: "6LfIkfQsAAAAAIMDpmcqDTETmcoEY2P2YwW2nXQE",
   useMockLeaderboard: ["localhost", "127.0.0.1", ""].includes(window.location.hostname),

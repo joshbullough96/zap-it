@@ -102,6 +102,42 @@ The Settings dialog includes:
 
 Theme changes apply immediately, including during an active round. The selected theme, dark-mode setting, and One color value are stored as non-sensitive preferences in `localStorage`.
 
+## Background Music
+
+Host MP3 files with the static game in `assets/audio/`, then list their paths in
+`app-config.js` (filenames and capitalization must match your deployed files):
+
+```js
+musicTracks: {
+  classic: ["assets/audio/Zap It (Synthwave Guitar Take).mp3"],
+  survival: [
+    "assets/audio/Neon Rain.mp3",
+    "assets/audio/Cityscape.mp3",
+    "assets/audio/Hyperscape.mp3",
+    "assets/audio/Zap It (Synthwave Guitar Take).mp3",
+  ],
+},
+```
+
+Create the `assets/audio/` folder when adding the files. Deploy it with the rest
+of the website. Public HTTPS URLs from separate storage also work; keep them
+stable rather than using expiring download links. No database or audio library
+is needed. The current playlist includes all four tracks shown above.
+
+Music starts when the player starts a game, advances through the playlist, and
+repeats it. The game and music pause while the page is hidden; music stops at game over. Restarting
+a run starts its mode's playlist from the beginning. Classic plays only Zap It;
+Survival loops Neon Rain, Cityscape, Hyperscape, then Zap It. Opening Settings, Instructions,
+or the leaderboard pauses the game and music; closing the dialog resumes both. Settings has a **Background music** toggle;
+the choice persists in localStorage and applies immediately. Playback failures
+never block the game. Browsers may require toggling music off and on to resume
+after returning to the page. Without configured tracks, the toggle is disabled.
+
+Sound effects are synthesized locally: a 0.16-second laser zap for a correct match
+and a lower buzz for a miss. The separate **Sound effects** switch defaults on
+and remembers the player's choice independently of music. No audio downloads
+are needed for effects; unavailable browser audio never blocks gameplay.
+
 ## Leaderboard Setup
 
 The game works without Supabase. Outside local mock mode, saving scores and loading the global leaderboard require a deployed Supabase Edge Function.

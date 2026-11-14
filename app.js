@@ -3,6 +3,8 @@ const preferenceKeys = {
   theme: "zapItTheme",
   darkMode: "zapItDarkMode",
   oneColor: "zapItOneColor",
+  music: "zapItMusic",
+  soundEffects: "zapItSoundEffects",
 };
 const defaultOneColor = "#0f7b8f";
 const defaultTheme = "normal";
@@ -76,6 +78,12 @@ const maxPlayerNameLength = 16;
 const playerNamePattern = /^[A-Za-z0-9 _-]+$/;
 const fallbackBlockedWords = ["damn", "hell"];
 const config = window.ZAP_IT_CONFIG || {};
+const musicPlaylists = Object.fromEntries(Object.keys(gameModes).map((mode) => {
+  const tracks = config.musicTracks?.[mode];
+  return [mode, Array.isArray(tracks)
+    ? tracks.filter((track) => typeof track === "string" && track.trim()).map((track) => track.trim())
+    : []];
+}));
 const leaderboardEndpoint = String(config.leaderboardEndpoint || "").trim().replace(/\/$/, "");
 const recaptchaSiteKey = String(config.recaptchaSiteKey || "").trim();
 const recaptchaAction = "save_score";
@@ -146,6 +154,9 @@ const settingsMenu = document.querySelector("#settings-menu");
 const closeSettingsButton = document.querySelector("#close-settings-button");
 const themeInputs = document.querySelectorAll("input[name='theme']");
 const darkModeToggle = document.querySelector("#dark-mode-toggle");
+const musicToggle = document.querySelector("#music-toggle");
+const musicStatus = document.querySelector("#music-status");
+const soundEffectsToggle = document.querySelector("#sound-effects-toggle");
 const oneColorPicker = document.querySelector("#one-color-picker");
 const oneColorSwatches = document.querySelectorAll("#one-color-swatches span");
 
@@ -155,6 +166,7 @@ let wrongCount = 0;
 let timeLeft = gameLength;
 let target = null;
 let running = false;
+let pausedAt = null;
 let boardLocked = false;
 let scoreSaved = false;
 let savedScoreId = null;
@@ -172,6 +184,24 @@ let oneColorValue = getSavedOneColor();
 let shapeRenderCount = 0;
 let combos = buildCombos(activeTheme);
 let recaptchaScriptPromise = null;
+let musicEnabled = readPreference(preferenceKeys.music) !== "false";
+let soundEffectsEnabled = readPreference(preferenceKeys.soundEffects) !== "false";
+let effectsContext = null;
+let activeEffect = null;
+let musicTrackIndex = 0;
+let musicTracks = musicPlaylists[defaultGameMode];
+const backgroundMusic = new Audio();
+backgroundMusic.preload = "none";
+backgroundMusic.volume = 0.10;
+backgroundMusic.addEventListener("ended", () => {
+  if (!running || !musicEnabled || document.hidden || !musicTracks.length) return;
+  musicTrackIndex = (musicTrackIndex + 1) % musicTracks.length;
+  backgroundMusic.src = musicTracks[musicTrackIndex];
+  syncMusic();
+});
+backgroundMusic.addEventListener("error", () => {
+  musicStatus.textContent = "Music couldn't load. You can keep playing.";
+});
 
 applyPreferences();
 renderEmptyGrid();
@@ -196,6 +226,20 @@ closeSettingsButton.addEventListener("click", closeSettings);
 settingsMenu.addEventListener("click", handleSettingsBackdropClick);
 themeInputs.forEach((input) => input.addEventListener("change", handleThemeChange));
 darkModeToggle.addEventListener("change", handleDarkModeChange);
+musicToggle.addEventListener("change", () => {
+  musicEnabled = musicToggle.checked;
+  syncMusicToggleUi();
+  savePreference(preferenceKeys.music, String(musicEnabled));
+  syncMusic();
+});
+document.addEventListener("visibilitychange", syncPauseState);
+soundEffectsToggle.addEventListener("change", () => {
+  soundEffectsEnabled = soundEffectsToggle.checked;
+  document.querySelector("#sound-effects-state").textContent = soundEffectsEnabled ? "On" : "Off";
+  savePreference(preferenceKeys.soundEffects, String(soundEffectsEnabled));
+  if (!soundEffectsEnabled && activeEffect) activeEffect.stop();
+});
+window.addEventListener("pagehide", () => backgroundMusic.pause());
 oneColorPicker.addEventListener("input", handleOneColorChange);
 document.addEventListener("keydown", handleDocumentKeydown);
 playerNameInput.addEventListener("input", () => {
@@ -208,6 +252,107 @@ function getSavedTheme() {
   const savedTheme = readPreference(preferenceKeys.theme);
   if (savedTheme === "halloween") return "fall";
   return themes[savedTheme] ? savedTheme : defaultTheme;
+}
+
+function syncPauseState() {
+  const shouldPause = running && (document.hidden || !settingsMenu.hidden
+    || !instructionsMenu.hidden || !leaderboardMenu.hidden);
+  if (shouldPause && pausedAt === null) {
+    pausedAt = performance.now();
+    clearInterval(timerId);
+    timerId = null;
+  } else if (!shouldPause && pausedAt !== null) {
+    matchStartedAt += performance.now() - pausedAt;
+    pausedAt = null;
+    if (running) timerId = setInterval(tick, 1000);
+  }
+  syncMusic();
+}
+
+function syncMusic() {
+  if (!musicEnabled || !running || pausedAt !== null || document.hidden || !musicTracks.length) {
+    backgroundMusic.pause();
+    return;
+  }
+  if (!backgroundMusic.getAttribute("src")) {
+    backgroundMusic.src = musicTracks[musicTrackIndex];
+  }
+  // Playback begins from Start or the music toggle, satisfying browser gesture rules.
+  // A rejected play request must never interrupt gameplay.
+  backgroundMusic.play().then(() => {
+    musicStatus.textContent = "";
+  }).catch((error) => {
+    if (error.name === "AbortError") return;
+    musicStatus.textContent = error.name === "NotAllowedError"
+      ? "Turn music off and on to resume playback."
+      : "Music couldn't play. You can keep playing.";
+  });
+}
+
+function syncMusicToggleUi() {
+  musicToggle.checked = musicEnabled;
+  document.querySelector(".music-toggle-row .music-switch-state").textContent = musicEnabled ? "On" : "Off";
+  document.querySelector(".music-toggle-row .music-label i").className = musicEnabled
+    ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark";
+}
+
+function playMatchSound(isMatch) {
+  if (!soundEffectsEnabled) return;
+  try {
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!Context) return;
+    effectsContext ||= new Context();
+    if (effectsContext.state === "suspended") {
+      effectsContext.resume().catch(() => {});
+    }
+    if (activeEffect) activeEffect.stop();
+    const now = effectsContext.currentTime;
+    if (isMatch) {
+      // A short laser pulse with a smooth downward pitch sweep.
+      const duration = 0.16;
+      const source = effectsContext.createOscillator();
+      source.type = "triangle";
+      source.frequency.setValueAtTime(1100, now);
+      source.frequency.exponentialRampToValueAtTime(140, now + duration);
+      const gain = effectsContext.createGain();
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.1133, now + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      source.connect(gain);
+      gain.connect(effectsContext.destination);
+      activeEffect = source;
+      source.onended = () => {
+        source.disconnect();
+        gain.disconnect();
+        if (activeEffect === source) activeEffect = null;
+      };
+      source.start(now);
+      source.stop(now + duration);
+      return;
+    }
+
+    const oscillator = effectsContext.createOscillator();
+    const gain = effectsContext.createGain();
+    const duration = 0.19;
+    oscillator.type = "sawtooth";
+    oscillator.frequency.setValueAtTime(180, now);
+    oscillator.frequency.exponentialRampToValueAtTime(55, now + duration);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.101, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    oscillator.connect(gain);
+    gain.connect(effectsContext.destination);
+    activeEffect = oscillator;
+    oscillator.onended = () => {
+      oscillator.disconnect();
+      gain.disconnect();
+      if (activeEffect === oscillator) activeEffect = null;
+    };
+    oscillator.start(now);
+    oscillator.stop(now + duration);
+  } catch {
+    // Optional audio feedback must never affect scoring or gameplay.
+  }
 }
 
 function getSavedDarkMode() {
@@ -273,6 +418,12 @@ function applyPreferences() {
   });
 
   darkModeToggle.checked = darkMode;
+  soundEffectsToggle.checked = soundEffectsEnabled;
+  document.querySelector("#sound-effects-state").textContent = soundEffectsEnabled ? "On" : "Off";
+  document.querySelector("#dark-mode-state").textContent = darkMode ? "On" : "Off";
+  syncMusicToggleUi();
+  musicToggle.disabled = musicTracks.length === 0;
+  musicStatus.textContent = musicTracks.length ? "" : "Music is coming soon.";
   oneColorPicker.value = oneColorValue;
   oneColorSwatches.forEach((swatch, index) => {
     const colors = [
@@ -286,11 +437,13 @@ function applyPreferences() {
 
 function openSettings() {
   settingsMenu.hidden = false;
+  syncPauseState();
   closeSettingsButton.focus();
 }
 
 function closeSettings() {
   settingsMenu.hidden = true;
+  syncPauseState();
   settingsButton.focus();
 }
 
@@ -302,12 +455,14 @@ function handleSettingsBackdropClick(event) {
 
 function openLeaderboard() {
   leaderboardMenu.hidden = false;
+  syncPauseState();
   closeLeaderboardButton.focus();
   loadLeaderboard({ standaloneOnly: true });
 }
 
 function closeLeaderboard() {
   leaderboardMenu.hidden = true;
+  syncPauseState();
   leaderboardButton.focus();
 }
 
@@ -324,11 +479,13 @@ function closeGameOver() {
 
 function openInstructions() {
   instructionsMenu.hidden = false;
+  syncPauseState();
   closeInstructionsButton.focus();
 }
 
 function closeInstructions() {
   instructionsMenu.hidden = true;
+  syncPauseState();
   instructionsButton.focus();
 }
 
@@ -514,6 +671,17 @@ function startGame() {
   timeLeft = gameLength;
   currentRunMode = activeGameMode;
   running = true;
+  pausedAt = null;
+  backgroundMusic.pause();
+  musicTracks = musicPlaylists[currentRunMode];
+  musicTrackIndex = 0;
+  if (musicTracks.length) {
+    backgroundMusic.src = musicTracks[0];
+    backgroundMusic.currentTime = 0;
+  } else {
+    backgroundMusic.removeAttribute("src");
+  }
+  syncMusic();
   boardLocked = false;
   scoreSaved = false;
   savedScoreId = null;
@@ -542,6 +710,7 @@ function startGame() {
 }
 
 function tick() {
+  if (!running || pausedAt !== null) return;
   if (isSurvivalMode()) {
     updateStats();
     return;
@@ -557,6 +726,8 @@ function tick() {
 
 function endGame() {
   running = false;
+  syncMusic();
+  if (backgroundMusic.getAttribute("src")) backgroundMusic.currentTime = 0;
   boardLocked = true;
   matchEndedAt = performance.now();
   finalElapsedSeconds = getElapsedSeconds();
@@ -653,10 +824,11 @@ function renderEmptyGrid() {
 }
 
 function handleCellClick(event) {
-  if (!running || boardLocked) return;
+  if (!running || pausedAt !== null || boardLocked) return;
 
   const button = event.currentTarget;
   const isMatch = button.dataset.comboId === target.id;
+  playMatchSound(isMatch);
 
   if (!isMatch) {
     streak = 0;
@@ -1284,7 +1456,7 @@ function getDisplayedStatsMode() {
 function getElapsedSeconds() {
   if (!matchStartedAt) return 0;
 
-  const endTime = matchEndedAt || performance.now();
+  const endTime = matchEndedAt || pausedAt || performance.now();
   return Math.max(0, (endTime - matchStartedAt) / 1000);
 }
 
