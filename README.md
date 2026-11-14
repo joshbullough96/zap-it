@@ -259,7 +259,36 @@ Use this quick pass before considering a change done:
 
 ## Deployment Notes
 
-Because this is a static app, deploy `index.html`, `styles.css`, `app.js`, `app-config.js`, and the `js/` and `assets/` folders to any static host. Configure the public Edge Function URL and reCAPTCHA site key in `app-config.js` if the online leaderboard should be active. JavaScript uses native ES modules, so use the local HTTP server rather than opening `index.html` directly.
+For production, use the optional minified build:
+
+```sh
+npm install
+npm run verify
+```
+
+Set the hosting build command to `npm run build` and its publish/output directory
+to `dist`. Publish only that directory. It contains minified, bundled JavaScript
+with content hashes in the filenames, the public configuration, HTML, CSS, and
+assets. It excludes readable JavaScript modules, tests, backend files, and source
+maps. The original source stays readable in the repository. Minification deters
+casual reading; code delivered to a browser can still be copied or reconstructed.
+
+To preview the production version locally:
+
+```sh
+python -m http.server 8000 --directory dist
+```
+
+Ordinary local development still works with `python -m http.server 8000` and does
+not require a build. `npm test` checks the sources; `npm run verify` builds first
+and additionally exercises the actual minified production bundle. Builds retain
+older hashed bundles within `dist` so an open page can finish loading its version.
+
+Configure the public Edge Function URL and reCAPTCHA site key in `app-config.js`
+before building if the online leaderboard should be active. The production output
+is still a static site; it needs no Node.js server. For development, JavaScript
+uses native ES modules, so use the local HTTP server rather than opening
+`index.html` directly.
 
 Supabase deployment is handled separately through the files in `supabase/`.
 

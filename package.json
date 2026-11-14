@@ -1,0 +1,14 @@
+{
+  "name": "zap-it",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Zap It browser matching game",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "verify": "npm run build && npm test",
+    "test": "node --experimental-vm-modules --test tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.17.19"
+  }
+}

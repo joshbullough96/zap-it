@@ -155,3 +155,58 @@ test('remote requests preserve API contract and reCAPTCHA flow',async()=>{
 test('player name validation remains enforced',async()=>{
  const env=await load();for(const name of ['a','a'.repeat(17),'bad@name','damn'])assert(env.api.validatePlayerName(name));assert.equal(env.api.validatePlayerName('Josh B'),'');
 });
+
+test('production bundle preserves gameplay, settings, and mode playlists', {
+  skip: !fs.existsSync(path.join(root, 'dist', 'index.html')),
+}, async () => {
+  const output = path.join(root, 'dist');
+  const html = fs.readFileSync(path.join(output, 'index.html'), 'utf8');
+  const configName = html.match(/src="(app-config\.[a-f0-9]+\.min\.js)"/)[1];
+  const gameName = html.match(/src="(app\.[a-f0-9]+\.min\.js)"/)[1];
+  const configContext = vm.createContext({window: {location: {hostname: 'localhost'}}});
+  vm.runInContext(fs.readFileSync(path.join(output, configName), 'utf8'), configContext);
+  const config = plain(configContext.window.ZAP_IT_CONFIG);
+  const code = fs.readFileSync(path.join(output, gameName), 'utf8');
+  assert(!code.includes('sourceMappingURL'));
+  assert(!html.includes('src="app.js"'));
+  assert(!fs.existsSync(path.join(output, 'js')));
+  for (const playlist of Object.values(config.musicTracks)) {
+    for (const track of playlist) assert(fs.existsSync(path.join(output, track)));
+  }
+  const env = browser(config);
+  const main = new vm.SourceTextModule(code, {context: env.context});
+  await main.link(() => {throw new Error('Production bundle must be self-contained');});
+  await main.evaluate();
+  const get = env.get;
+  await get('#start-button').dispatch('click');
+  assert.equal(get('#time-left').textContent, '60');
+  const match = () => get('#grid').children.find(cell =>
+    cell.getAttribute('aria-label') === get('#target-name').textContent);
+  const miss = () => get('#grid').children.find(cell => cell !== match());
+  await match().click();
+  assert.equal(get('#score').textContent, '1');
+  await env.advance(520);
+  await miss().click();
+  assert.equal(get('#time-left').textContent, '50');
+  assert(env.audioEvents.some(event => event[0] === 'tone'));
+  assert(env.audioEvents.some(event => event[0] === 'play' && /Zap It/.test(event[1])));
+  await get('#settings-button').dispatch('click');
+  const score = get('#score').textContent;
+  await match().click();
+  assert.equal(get('#score').textContent, score);
+  get('#music-toggle').checked = false;
+  await get('#music-toggle').dispatch('change');
+  assert.equal(env.storage.get('zapItMusic'), 'false');
+  await get('#close-settings-button').dispatch('click');
+  for (let index = 0; index < 5; index += 1) await miss().click();
+  assert.equal(get('#game-over').hidden, false);
+  await get('#close-game-over-button').dispatch('click');
+  await env.modeInputs[1].dispatch('change');
+  get('#music-toggle').checked = true;
+  await get('#music-toggle').dispatch('change');
+  await get('#start-button').dispatch('click');
+  assert(env.audioEvents.some(event => event[0] === 'play' && /Neon Rain/.test(event[1])));
+  await miss().click();
+  assert.equal(get('#game-over').hidden, false);
+  assert.equal(get('#final-score').textContent, '0');
+});
