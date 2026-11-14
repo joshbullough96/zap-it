@@ -259,6 +259,29 @@ Use this quick pass before considering a change done:
 
 ## Deployment Notes
 
+### GitHub Pages
+
+The workflow in `.github/workflows/deploy-pages.yml` installs dependencies, runs
+`npm run verify`, and publishes only `dist/` after the checks pass. It runs on
+pushes to `main` and can also be started manually from the Actions tab. Build
+output stays ignored by Git; there is no need to commit `dist/`.
+
+One-time setup in the repository on GitHub:
+
+1. Open **Settings > Pages**.
+2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
+3. Push the workflow to `main`, or use **Actions > Build and deploy GitHub Pages > Run workflow**
+   if it has already been pushed.
+4. Check the workflow run for the deployment result and published URL.
+
+The workflow uses GitHub's built-in deployment token, so no personal token or
+additional repository secret is needed. It uses `npm install` because the project
+does not currently have a package lockfile. If one is added, switch that step to
+`npm ci` for locked installs. Site asset paths remain relative, so both the project
+URL (`/zap-it/`) and a configured custom domain can use the same build.
+
+### Building Locally
+
 For production, use the optional minified build:
 
 ```sh
