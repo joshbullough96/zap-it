@@ -27,7 +27,8 @@ The app is intentionally lightweight: plain HTML, CSS, and JavaScript for the ga
 .
 |-- index.html                         # Game markup and dialogs
 |-- styles.css                         # Responsive layout, themes, animation, and visual states
-|-- app.js                             # Game state, settings, scoring, rendering, and leaderboard calls
+|-- app.js                             # Entry point: initialization and event wiring
+|-- js/                                # Browser ES modules grouped by responsibility
 |-- app-config.js                      # Public leaderboard endpoint config
 |-- assets/
 |   |-- brand/logo.svg                 # App logo
@@ -258,6 +259,51 @@ Use this quick pass before considering a change done:
 
 ## Deployment Notes
 
-Because this is a static app, deploy `index.html`, `styles.css`, `app.js`, `app-config.js`, and the `assets/` folder to any static host. Configure the public Edge Function URL and reCAPTCHA site key in `app-config.js` if the online leaderboard should be active.
+Because this is a static app, deploy `index.html`, `styles.css`, `app.js`, `app-config.js`, and the `js/` and `assets/` folders to any static host. Configure the public Edge Function URL and reCAPTCHA site key in `app-config.js` if the online leaderboard should be active. JavaScript uses native ES modules, so use the local HTTP server rather than opening `index.html` directly.
 
 Supabase deployment is handled separately through the files in `supabase/`.
+
+## JavaScript Responsibilities
+
+`app.js` initializes the application and connects browser events. The modules in
+`js/` use explicit imports instead of shared global variables. `state.js` holds
+the mutable model; initialize it after the module graph has loaded, before
+rendering or handling input.
+
+| Module | Responsibility |
+| --- | --- |
+| `constants.js` | Game rules, themes, and public configuration |
+| `dom.js` | DOM selectors and element references |
+| `state.js` | Initial values and shared application model |
+| `game.js` | Run lifecycle, scoring, timing, pause, and game modes |
+| `input.js` | Keyboard shortcuts and text-entry guards |
+| `board.js` | Matching-board generation and cell rendering |
+| `shapes.js` | SVG shapes and color gradients |
+| `effects.js` | Visual lightning and penalty animations |
+| `preferences.js` | Saved settings and appearance changes |
+| `audio.js` | Music playlists and synthesized sound feedback |
+| `dialogs.js` | Dialog visibility and focus restoration |
+| `leaderboard.js` | Score validation, submission, and loading coordination |
+| `leaderboard-api.js` | HTTP requests and response errors |
+| `leaderboard-mock.js` | Local storage, ranking, and placement simulation |
+| `leaderboard-view.js` | Leaderboard and placement rendering |
+| `recaptcha.js` | Verification script loading and tokens |
+| `utils.js` | Pure formatting, math, randomization, and color helpers |
+
+Some modules call each other's exported functions. Keep initialization in the
+entry point rather than invoking other services during module evaluation.
+
+## Automated Regression Checks
+
+No package installation or build step is required. With Node.js installed, run:
+
+```sh
+node --experimental-vm-modules --test tests/app-regression.test.cjs
+```
+
+These tests load the real module graph in a simulated browser and exercise both
+game modes, matches, misses, restarts, pause/resume, themes, stored preferences,
+sound controls, keyboard input, mock scores, missing configuration, and the HTTP
+and reCAPTCHA contracts. They do not replace visual or audio checks in a browser.
+For a before/after comparison, set `ZAP_IT_BASELINE` to a copy of the old `app.js`;
+the gameplay scenarios then compare state and UI snapshots with that version.
